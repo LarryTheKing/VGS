@@ -5,6 +5,6 @@ namespace VGS
 {
 	bool CPU::Cycle()
 	{
-
+		return true;
 	}
 }
