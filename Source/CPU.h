@@ -1,7 +1,5 @@
 #pragma once
 
-//#include "System.h"
-
 #define FLAG_H		0x1
 #define FLAG_L		0x2
 #define	FLAG_I		0x4
@@ -25,26 +23,32 @@ namespace VGS {
 	{
 	public:
 		System * const		pSystem;
-		unsigned __int32	cycle;
+		unsigned __int32	PC;
 
 		// Registers
 		union {
-			Register reg[0x40];
+			Register reg[0x20];
 			struct {
-				Register T[0xF];	// 0x00 :: 0x0F	// Temporary	: Global, any use
-				Register S[0xF];	// 0x10 :: 0x1F	// Subroutine	: Preserved for sub
-				Register P[0x8];	// 0x20 :: 0x27	// Parameters	: Preserved for sub
-				Register A[0x8];	// 0x28 :: 0x2F	// Math/Return	: Preserved for caller
-
-				Register C;			// 0x30	// Program counter
-				Register R;			// 0x31	// Interupt return
-				Register F;			// 0x32	// Flags
+				Register R0;		// 0x00 // Zero Always
+				Register R1;		// 0x01 // ??
+				Register V[0x2];	// 0x02 :: 0x03 // Math-Return
+				Register A[0x4];	// 0x04 :: 0x07 // Arguments
+				Register T[0x8];	// 0x08 :: 0x0F // Temporary
+				Register S[0x8];	// 0x10 :: 0x17 // Subroutine
+				Register T8;		// 0x18 //
+				Register T9;		// 0x19 //
+				Register K[0x2];	// 0x1A :: 0x1B // Kernal
+				
+				Register GP;		// 0x1C	// Global Pointer
+				Register SP;		// 0x1D	// Stack Pointer
+				Register FP;		// 0x1E	// Frame Pointer
+				Register RA;		// 0x1F // Return Address
 			};
 		};
 
 	public:
-		CPU(System * const pS) :
-			pSystem(pS) {}
+		CPU(System * const);
+		
 		bool Cycle();
 	};
 }
