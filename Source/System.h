@@ -4,7 +4,7 @@
 #include "CPU.h"
 #include "GPU.h"
 #include "APU.h"
-
+#define PC_START	0x200
 
 #define RAM_SIZE	0x1000000
 #define GRAM_SIZE	0x800000
@@ -22,7 +22,7 @@ namespace VGS
 {
 	class System
 	{
-	private:
+	public: // PRETEND PRIVATE IN MOST CASES
 		unsigned __int32 cycle;
 
 		CPU	vCPU;	// Virtual CPU
@@ -46,20 +46,18 @@ namespace VGS
 		void Crash() {}
 	};
 
-	System::System(void * const pROM, unsigned __int32 const size)
-		: vCPU(this), vGPU(this), vAPU(this),
-		vROM(pROM, size), vRAM(RAM_SIZE), vGRAM(GRAM_SIZE), vGBUF(GBUF_SIZE), vABUF(ABUF_SIZE) {}
+	
 
 	// Get a value from some memory bank at an offset
 	template <typename T = __int32> T System::GetMem(unsigned __int32 const offset)
 	{
 		switch (offset & MS_MASK)
 		{
-		case MS_RAM:
-			return vRAM.Get<T>(offset & (~MS_MASK));
-			break;
 		case MS_ROM:
 			return vROM.Get<T>(offset & (~MS_MASK));
+			break;
+		case MS_RAM:
+			return vRAM.Get<T>(offset & (~MS_MASK));
 			break;
 		case MS_GRAM:
 			return vGRAM.Get<T>(offset & (~MS_MASK));
@@ -81,12 +79,12 @@ namespace VGS
 	{
 		switch (offset & MS_MASK)
 		{
-		case MS_ROM:
-			vROM.Set<T>(offset & (~MS_MASK), value);
-			break;
 		case MS_RAM:
 			vRAM.Set<T>(offset & (~MS_MASK), value);
 			break;
+		case MS_ROM: // Don't think you should be writing to ROM, but OK
+			vROM.Set<T>(offset & (~MS_MASK), value);
+			break;	
 		case MS_GRAM:
 			vGRAM.Set<T>(offset & (~MS_MASK), value);
 			break;
