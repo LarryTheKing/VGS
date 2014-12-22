@@ -6,6 +6,6 @@ namespace VGS
 		: vCPU(this), vGPU(this), vAPU(this),
 		vROM(pROM, size), vRAM(RAM_SIZE), vGRAM(GRAM_SIZE), vGBUF(GBUF_SIZE), vABUF(ABUF_SIZE) 
 	{
-		vCPU.PC.u = PC_START;
+		vCPU.PC.u = MS_ROM + PC_START;
 	}
 }

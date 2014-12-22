@@ -5,10 +5,14 @@ namespace VGS
 	// Immediate
 	struct CPU_OP_I
 	{
-		unsigned __int32 op : 6;	// Opcode
-		unsigned __int32 rs : 5;	// Source
-		unsigned __int32 rt : 5;	// Target
-		unsigned __int32 immediate : 16;
+
+		unsigned __int16 op : 6;	// Opcode
+		unsigned __int16 rs : 5;	// Source
+		unsigned __int16 rt : 5;	// Target
+		union {
+			__int16	i;
+			unsigned __int16 u;
+		};
 	};
 
 	// Jump
@@ -91,11 +95,11 @@ namespace VGS
 ///////////////////////////////////////////////////////
 
 #define CPU_FUNC_SLL	0x00	// 0b000000			
-#define CPU_FUNC_SLLV	0x08	// 0b000100
+#define CPU_FUNC_SLLV	0x04	// 0b000100
 
 #define CPU_FUNC_SRA	0x03	// 0b000011
-#define CPU_SRL			0x02	// 0b000010
-#define CPU_SRLV		0x06	// 0b000110
+#define CPU_FUNC_SRL	0x02	// 0b000010
+#define CPU_FUNC_SRLV	0x06	// 0b000110
 
 ///////////////////////////////////////////////////////
 // Comparison Instructions
@@ -128,7 +132,7 @@ namespace VGS
 
 #define CPU_J			0x02	// 0b000010
 #define CPU_JAL			0x03	// 0b000011
-#define CPU_JR			0x08	// 0b001000
+#define CPU_FUNC_JR		0x08	// 0b001000
 #define CPU_FUNC_JALR	0x09	// 0b001001
 
 ///////////////////////////////////////////////////////
