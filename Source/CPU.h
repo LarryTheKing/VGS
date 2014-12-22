@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Register.h"
+
 #define FLAG_H		0x1
 #define FLAG_L		0x2
 #define	FLAG_I		0x4
@@ -9,23 +11,15 @@ namespace VGS {
 
 	class System;
 
-	struct Register
-	{
-		union
-		{
-			__int32				i;	// Integer usage
-			unsigned __int32	u;	// Unsigned integer usage
-			float				f;	// Floating point usage
-		};
-	};
-
 	class CPU
 	{
 	public:
 		System * const		pSystem;
-		unsigned __int32	PC;
+		Register	PC;
+		Register	HI;
+		Register	LO;
 
-		// Registers
+		// Registers (32)
 		union {
 			Register reg[0x20];
 			struct {

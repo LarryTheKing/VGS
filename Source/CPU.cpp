@@ -1,5 +1,6 @@
 #include "CPU.h"
 #include "System.h"
+#include "CPU_OP.h"
 
 namespace VGS
 {
