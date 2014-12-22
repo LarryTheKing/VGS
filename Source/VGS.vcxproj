@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{083D8063-4D09-40FB-8A62-C60789603BA3}</ProjectGuid>
+    <ProjectGuid>{BC5DFA95-B3EB-4122-A455-48208EE6E62F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>VGS</RootNamespace>
   </PropertyGroup>
@@ -139,23 +139,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CPU.cpp" />
-    <ClCompile Include="main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="LICENSE" />
-    <None Include="README.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="Specs.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="APU.h" />
     <ClInclude Include="CPU.h" />
     <ClInclude Include="GPU.h" />
     <ClInclude Include="MEM.h" />
-    <ClInclude Include="Opcode.h" />
+    <ClInclude Include="CPU_OP.h" />
+    <ClInclude Include="Register.h" />
     <ClInclude Include="System.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="System.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
