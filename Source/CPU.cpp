@@ -144,6 +144,10 @@ namespace VGS
 				reg[OP.R.rd].u = reg[OP.R.rs].u ^ reg[OP.R.rt].u;
 				ADVANCE_PC(4);
 				break;
+			case CPU_FUNC_SYSCALL :
+				pSystem->SystemCall(V[0].u);
+				ADVANCE_PC(4);
+				break;
 			}
 		} break;
 	#pragma endregion
