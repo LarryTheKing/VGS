@@ -4,7 +4,7 @@
 #include "CPU.h"
 #include "GPU.h"
 #include "APU.h"
-#define PC_START	0x200
+#define PC_START	0x00 // 0x200
 
 #define RAM_SIZE	0x1000000
 #define GRAM_SIZE	0x800000
@@ -22,8 +22,10 @@ namespace VGS
 {
 	class System
 	{
+		bool bRun;
+
 	public: // PRETEND PRIVATE IN MOST CASES
-		unsigned __int32 cycle;
+		unsigned __int64 cycle;
 
 		CPU	vCPU;	// Virtual CPU
 		GPU	vGPU;	// Virtual GPU
@@ -44,6 +46,7 @@ namespace VGS
 		template <typename T = __int32> inline void	SetMem(unsigned __int32 const, T const);
 
 		void Crash() {}
+		void SystemCall(unsigned __int32);
 	};
 
 	
