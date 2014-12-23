@@ -18,6 +18,7 @@ namespace VGS
 	MEM::~MEM(void)
 	{
 		free(pData);
+		pData = nullptr;
 	}
 
 }
