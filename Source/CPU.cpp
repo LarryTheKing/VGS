@@ -27,7 +27,6 @@ namespace VGS
 		};
 	};
 
-	
 	bool CPU::Cycle()
 	{
 		CPU_OP OP;

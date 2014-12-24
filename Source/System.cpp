@@ -25,21 +25,32 @@ namespace VGS
 	{
 		switch (op)
 		{
-		case 1 :
+#pragma region TESTING
+		case 1 :	// Print integer
 			std::cout << vCPU.A[0].i;
 			break;
-		case 4:
+		case 2 :	// Print float
+			std::cout << vCPU.A[0].f;
+			break;
+		// case 3 : // Prints double ?
+		case 4:		// Print string
 			std::cout << vRAM.pData + vCPU.A[0].u;
 			break;
-		case 5:
+		case 5 :	// Get integer	
 			std::cin >> vCPU.V[0].i;
 			break;
-		case 8:
+		// case 6 :	// Gets float
+		// case 7 :	// Gets double
+		case 8 :	// Read string
 			std::cin.getline(vRAM.pData + vCPU.A[0].u, vCPU.A[1].u);
 			break;
 		case 10:
 			bRun = false;
 			break;
+#pragma endregion
+#pragma region INPUT
+
+#pragma endregion
 		}
 	}
 

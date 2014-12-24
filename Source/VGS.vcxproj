@@ -140,6 +140,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="APU.h" />
+    <ClInclude Include="Compiler\Compiler.h" />
+    <ClInclude Include="Compiler\Node.h" />
+    <ClInclude Include="Compiler\Stack.h" />
     <ClInclude Include="CPU.h" />
     <ClInclude Include="GPU.h" />
     <ClInclude Include="MEM.h" />
@@ -148,9 +151,20 @@
     <ClInclude Include="System.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Compiler\Compiler.cpp" />
+    <ClCompile Include="Compiler\Stack.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MEM.cpp" />
     <ClCompile Include="System.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Test.asm">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="Test.vgs">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
