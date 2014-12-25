@@ -150,6 +150,24 @@ namespace VGS
 			}
 		} break;
 	#pragma endregion
+#pragma region BRANCH
+		case CPU_BRANCH:
+		{
+			switch (OP.I.rt)
+			{
+			case CPU_BRANCH_BGEZAL:
+				RA.u = PC.u + 4;
+			case CPU_BRANCH_BGEZ :
+				ADVANCE_PC((reg[OP.I.rs].u >= 0 ? OP.I.u << 2 : 4));
+				break;
+			case CPU_BRANCH_BLTZAL:
+				RA.u = PC.u + 4;
+			case CPU_BRANCH_BLTZ:
+				ADVANCE_PC((reg[OP.I.rs].u < 0 ? OP.I.u << 2 : 4));
+				break;
+			}
+		}
+#pragma endregion
 	#pragma region IMMEDIATE_JUMP
 		case CPU_ADDI :
 			reg[OP.I.rt].i = reg[OP.I.rs].i + OP.I.i;
