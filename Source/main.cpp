@@ -5,8 +5,6 @@
 
 int main()
 {
-
-	int t = strtol("cat", nullptr, 0);
 	VGS::Compiler::Compiler comp;
 
 	char * pComp = nullptr;

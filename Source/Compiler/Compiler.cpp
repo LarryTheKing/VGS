@@ -30,6 +30,8 @@ namespace VGS
 
 		char * Compiler::Compile(char * const fileName, size_t & size)
 		{
+			std::cout << "\nCompiling : \"" << fileName << "\"\n";
+
 			Reset();
 			if (!GenLitTree(fileName))
 			{
@@ -53,6 +55,8 @@ namespace VGS
 
 			memcpy(s, Text.Begin(), Text.Cursor() - Text.Begin());
 			memcpy(s + (Text.Cursor() - Text.Begin()), Data.Begin(), Data.Cursor() - Data.Begin());
+
+			std::cout << "\nCompilation successful!\n";
 
 			return s;
 		}
@@ -120,7 +124,7 @@ return true;
 		bool Compiler::GenLitTree(char * const fileName)
 		{
 			std::ifstream ifile(fileName);
-			std::cout << "\nOpening file \"" << fileName << "\"\n";
+			std::cout << "Opening file \"" << fileName << "\"\n";
 			if (!ifile.is_open())
 			{
 				std::cout << "ERROR : Failed to open file." << std::endl;
@@ -128,6 +132,9 @@ return true;
 			}
 
 			// Read each line from file and generate litterature tree
+
+			std::cout << "\nGenerating litterature tree...\n";
+
 			unsigned __int32 nLine = 1;
 
 			std::string	sLine;
@@ -140,6 +147,8 @@ return true;
 				}
 				nLine++;
 			}
+
+			std::cout << ">> Found " << Litterature.size() << " words\n";
 
 			return true;
 			// TODO : Allow include files
@@ -441,7 +450,7 @@ return true;
 
 		bool Compiler::GenProgTree(void)
 		{
-			std::cout << "\nGenerating program tree\n";
+			std::cout << "\nGenerating program tree...\n";
 
 			unsigned __int32 mode = MODE_DATA;
 
@@ -476,12 +485,15 @@ return true;
 						return false;
 				}
 			}
+
+			std::cout << ">> Program tree built\n>> Created " << Keys.size() << " keys\n";
+
 			return true;
 		}
 
 		bool Compiler::Link(void)
 		{
-			std::cout << "\nLinking\n";
+			std::cout << "\nLinking...\n";
 
 			for (int l = 0; l < Links.size(); l++)
 			{
@@ -516,6 +528,8 @@ return true;
 					}
 				}
 			}
+
+			std::cout << ">> Made " << Links.size() << " links\n";
 
 			return true;
 		}
