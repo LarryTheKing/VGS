@@ -5,23 +5,29 @@
 
 int main()
 {
+
+	int t = strtol("cat", nullptr, 0);
 	VGS::Compiler::Compiler comp;
-	comp.Compile("Test.asm");
-	
-	std::ifstream ifile("Test.vgs", std::ios::in | std::ios::binary | std::ios::ate);
-	if (!ifile.is_open())
-		return 1;
-	
-	int fileSize = ifile.tellg();
-	char * pData = (char*)malloc(fileSize);
-	ifile.seekg(0, std::ios::beg);
-	ifile.read(pData, fileSize);
-	ifile.close();
+
+	char * pComp = nullptr;
+	size_t cSize = 0;
+
+	pComp = comp.Compile("Test.asm", cSize);
+	//
+	//std::ifstream ifile("Test.vgs", std::ios::in | std::ios::binary | std::ios::ate);
+	//if (!ifile.is_open())
+	//	return 1;
+	//
+	//int fileSize = ifile.tellg();
+	//char * pData = (char*)malloc(fileSize);
+	//ifile.seekg(0, std::ios::beg);
+	//ifile.read(pData, fileSize);
+	//ifile.close();
 
 
-	VGS::System sys(pData, fileSize);
+	VGS::System sys(pComp, cSize);
 	sys.Run();
 
-	free(pData);
+	//free(pData);
 	return 0;
 }

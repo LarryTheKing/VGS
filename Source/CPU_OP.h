@@ -32,6 +32,17 @@ namespace VGS
 		unsigned __int32 shamt : 5;
 		unsigned __int32 funct : 6;
 	};
+
+	struct CPU_OP
+	{
+		union
+		{
+			unsigned __int32 WORD;
+			CPU_OP_I	I;
+			CPU_OP_J	J;
+			CPU_OP_R	R;
+		};
+	};
 }
 
 ///////////////////////////////////////////////////////
@@ -52,6 +63,7 @@ namespace VGS
 #define CPU_LH		0x21	// 0b100001	// Load Halfword
 #define CPU_LHU		0x25	// 0b100101	// Load Halfword Unsigned
 #define CPU_LW		0x23	// 0b100011	// Load Word
+#define CPU_LUI		0x0F
 
 #define CPU_SB		0x28	// 0b101000	// Store Byte
 #define CPU_SH		0x29	// 0b101001	// Store Halfword

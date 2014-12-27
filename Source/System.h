@@ -43,6 +43,7 @@ namespace VGS
 		void Run();
 	public:
 		template <typename T = __int32> inline T	GetMem(unsigned __int32 const);
+		template <typename T = __int32> inline T*	GetPtr(unsigned __int32 const);
 		template <typename T = __int32> inline void	SetMem(unsigned __int32 const, T const);
 
 		void Crash() {}
@@ -50,6 +51,31 @@ namespace VGS
 	};
 
 	
+	// Get a value from some memory bank at an offset
+	template <typename T = __int32> T* System::GetPtr(unsigned __int32 const offset)
+	{
+		switch (offset & MS_MASK)
+		{
+		case MS_ROM:
+			return vROM.GetPtr<T>(offset & (~MS_MASK));
+			break;
+		case MS_RAM:
+			return vRAM.GetPtr<T>(offset & (~MS_MASK));
+			break;
+		case MS_GRAM:
+			return vGRAM.GetPtr<T>(offset & (~MS_MASK));
+			break;
+		case MS_GBUF:
+			return vGBUF.GetPtr<T>(offset & (~MS_MASK));
+			break;
+		case MS_ABUF:
+			return vABUF.GetPtr<T>(offset & (~MS_MASK));
+			break;
+		default:
+			return 0; // Crash();	// Hmmm... you shouldn't be here
+			break;
+		}
+	}
 
 	// Get a value from some memory bank at an offset
 	template <typename T = __int32> T System::GetMem(unsigned __int32 const offset)

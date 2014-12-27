@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <iostream>
 
-#include <chrono>
-#include <ctime>
-
 namespace VGS
 {
 	System::System(void * const pROM, unsigned __int32 const size)
@@ -34,7 +31,7 @@ namespace VGS
 			break;
 		// case 3 : // Prints double ?
 		case 4:		// Print string
-			std::cout << vRAM.pData + vCPU.A[0].u;
+			std::cout << GetPtr<char>(vCPU.A[0].u);
 			break;
 		case 5 :	// Get integer	
 			std::cin >> vCPU.V[0].i;
@@ -56,21 +53,10 @@ namespace VGS
 
 	void System::Run()
 	{
-		std::chrono::time_point<std::chrono::system_clock> start, end;
-		start = std::chrono::system_clock::now();
-		
-		while (bRun & cycle < 100000000)
+		while (bRun)
 		{
 			cycle++;
 			vCPU.Cycle();		
 		}
-
-		end = std::chrono::system_clock::now();
-
-		std::chrono::duration<double> elapsed_seconds = end - start;
-		std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-
-		std::cout << "\nFinished computation at " << std::ctime(&end_time)
-			<< "elapsed time: " << elapsed_seconds.count() << "s\n";
 	}
 }

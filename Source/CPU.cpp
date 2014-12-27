@@ -16,17 +16,6 @@ namespace VGS
 		SP.u = FP.u= pS->vRAM.size - 4;
 	}
 
-	struct CPU_OP
-	{
-		union
-		{
-			unsigned __int32 WORD;
-			CPU_OP_I	I;
-			CPU_OP_J	J;
-			CPU_OP_R	R;
-		};
-	};
-
 	bool CPU::Cycle()
 	{
 		CPU_OP OP;
@@ -216,6 +205,9 @@ namespace VGS
 			break;
 		case CPU_LW :
 			reg[OP.I.rt].i = pSystem->GetMem<__int32>(reg[OP.I.rs].u + OP.I.i);
+			ADVANCE_PC(4);
+		case CPU_LUI :
+			reg[OP.I.rt].u = OP.I.u << 16;
 			ADVANCE_PC(4);
 			break;
 		case CPU_ORI :
