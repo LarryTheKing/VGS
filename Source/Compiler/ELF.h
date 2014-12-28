@@ -2,7 +2,20 @@
 
 // Via ELF Spec 1.1
 
-#define EI_NINDENT	16
+#define EI_NINDENT	16	// Size of e_ident[]
+#define EI_MAG0		0	// File identification
+#define EI_MAG1		1	// File identification
+#define EI_MAG2		2	// File identification
+#define EI_MAG3		3	// File identification
+#define EI_CLASS	4	// File class : 1 = 32bit, 2 = 64bit
+#define EI_DATA		5	// Data encoding : 1 = little edian, 2 = big edian
+#define EI_VERSION	6	// File version : 1 for original elf
+#define EI_PAD		7	// Start of padding bytes
+
+#define ELFMAG0		0x7f	// e_ident[EI_MAG0]
+#define ELFMAG1		'E'		// e_ident[EI_MAG1]
+#define ELFMAG2		'L'		// e_ident[EI_MAG2]
+#define ELFMAG3		'F'		// e_ident[EI_MAG3]
 
 #define ET_NONE 0	// No file type
 #define ET_REL	1	// Relocatable file
@@ -90,9 +103,9 @@ namespace VGS
 			Elf32_Half		e_type;			// Object file type
 			Elf32_Half		e_machine;		// Machine architecture
 			Elf32_Word		e_version;		// Object file version
-			Elf32_Addr		e_entry;		// Memory address of the entry point
-			Elf32_Off		e_phoff;		// Points to start of program header table
-			Elf32_Off		e_shoff;		// Points to start of section header table
+			Elf32_Addr		e_entry;		// Memory address of the entry point, 0 if none associated
+			Elf32_Off		e_phoff;		// Points to start of program header table, 0 if none
+			Elf32_Off		e_shoff;		// Points to start of section header table, 0 if none
 			Elf32_Word		e_flags;		// 
 			Elf32_Half		e_ehsize;		// Size of this header
 			Elf32_Half		e_phentsize;	// Size of a program header table item
@@ -108,7 +121,7 @@ namespace VGS
 			Elf32_Word		sh_type;		// Categorizes sections content and semantics
 			Elf32_Word		sh_flags;		// Section flags
 			Elf32_Addr		sh_addr;		// Address where section should appear in memory
-			Elf32_Off		sh_offset;		// Offset to section in file
+			Elf32_Off		sh_offset;		// Offset to section in file. Otherwise 0
 			Elf32_Word		sh_size;		// Size of section in bytes
 			Elf32_Word		sh_link;		// Section header index link
 			Elf32_Word		sh_info;		// Extra info, type dependant
