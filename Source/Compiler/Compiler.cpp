@@ -196,6 +196,8 @@ return true;
 					return -1;
 				}
 
+				Data.Align(2);
+
 				if (val < 0)
 					*Data.Alloc<__int16>() = val;
 				else
@@ -218,6 +220,16 @@ return true;
 					*Data.Alloc<unsigned __int32>() = val;
 
 				return 1;
+			}
+			else if (pArgs[0] == ".space")
+			{
+				long val = strtol(pArgs[1].data(), nullptr, 0);
+				if (val > 0)
+				{	Data.Alloc(val);
+					return 1;		}
+				else
+				{	std::cout << "ERROR : Cannot create space of size " << val << " bytes\n";
+					return -1;		}
 			}
 			else if (pArgs[0] == ".ascii" || pArgs[0] == ".asciiz")
 			{
@@ -379,35 +391,37 @@ return true;
 			switch (op)
 			{
 			case(0x01) :	// la
-			{
-				iNode p1 = MatchNode(pArgs[0]);
-				if (p1.t8 != NODE_TYPE_REGISTER)
-					return -1;
-
-				long val = strtol(pArgs[1].data(), nullptr, 0);
-
-				CPU_OP * ops = Text.Alloc<CPU_OP>(2);
-				ops[0].WORD = CPU_LUI;
-				ops[1].WORD = CPU_ORI;
-
-				ops[0].I.rt = 1;
-				ops[1].I.rs = 1;
-				ops[1].I.rt = p1.Value;
-
-				ops[0].I.u = val >> 16;
-				ops[1].I.u = val & 0xFFFF;
-
-				// Was this maybe supposed to be a label?
-				if (val == 0 && pArgs[1][0] != '0')
+			#pragma region LA
 				{
-					Links.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops)-Text.Begin(), (NODE_TYPE_UPPER << 8) | NODE_TYPE_IMMEDIATE));
-					Links.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops + 1) - Text.Begin(), (NODE_TYPE_LOWER << 8) | NODE_TYPE_IMMEDIATE));
-				}
+					iNode p1 = MatchNode(pArgs[0]);
+					if (p1.t8 != NODE_TYPE_REGISTER)
+						return -1;
 
-				return 2;
+					long val = strtol(pArgs[1].data(), nullptr, 0);
 
-			}	break;
-			case(0x02) :
+					CPU_OP * ops = Text.Alloc<CPU_OP>(2);
+					ops[0].WORD = CPU_LUI;
+					ops[1].WORD = CPU_ORI;
+
+					ops[0].I.rt = 1;
+					ops[1].I.rs = 1;
+					ops[1].I.rt = p1.Value;
+
+					ops[0].I.u = val >> 16;
+					ops[1].I.u = val & 0xFFFF;
+
+					// Was this maybe supposed to be a label?
+					if (val == 0 && pArgs[1][0] != '0')
+					{
+						Links.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops)-Text.Begin(), (NODE_TYPE_UPPER << 8) | NODE_TYPE_IMMEDIATE));
+						Links.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops + 1) - Text.Begin(), (NODE_TYPE_LOWER << 8) | NODE_TYPE_IMMEDIATE));
+					}
+
+					return 2;
+				}	break;
+			#pragma endregion
+			case(0x02) :	// li
+			#pragma region LI
 			{
 				iNode p1 = MatchNode(pArgs[0]);
 				if (p1.t8 != NODE_TYPE_REGISTER)
@@ -442,6 +456,63 @@ return true;
 				return 2;
 		
 			}	break;
+			#pragma endregion
+			case (0x03)	:	// push
+			#pragma region PUSH
+			{
+				iNode p1 = MatchNode(pArgs[0]);
+				if (p1.t8 != NODE_TYPE_REGISTER)
+					return -1;
+
+				CPU_OP * ops = Text.Alloc<CPU_OP>(3);
+				ops[0].WORD = CPU_LUI;
+				ops[1].WORD = 0;
+				ops[2].WORD = CPU_SW;
+
+				ops[0].I.rt = 0x01;		// li $r1, 4
+				ops[0].I.u = 4;
+
+				ops[1].R.op = CPU_FUNC;	// subu $sp,$sp,$r1
+				ops[1].R.funct = CPU_FUNC_SUBU;
+				ops[1].R.rd = 0x1D;
+				ops[1].R.rs = 0x1D;
+				ops[1].R.rt = 0x01;
+
+				ops[2].I.rt = p1.Value;	// sw $VAL,($sp)
+				ops[2].I.rs = 0x1D;
+
+				return 1;
+
+			}	break;
+			#pragma endregion
+			case (0x04) :	// pop
+			#pragma region POP
+			{
+				iNode p1 = MatchNode(pArgs[0]);
+				if (p1.t8 != NODE_TYPE_REGISTER)
+					return -1;
+
+				CPU_OP * ops = Text.Alloc<CPU_OP>(3);
+				ops[0].WORD = CPU_LUI;
+				ops[1].WORD = CPU_LW;
+				ops[2].WORD = 0;
+
+				ops[0].I.rt = 0x01;		// li $r1, 4
+				ops[0].I.u = 4;
+
+				ops[1].I.rt = p1.Value;	// lw $VAL,($sp)
+				ops[1].I.rs = 0x1D;
+
+				ops[2].R.op = CPU_FUNC;	// subu $sp,$sp,$r1
+				ops[2].R.funct = CPU_FUNC_ADDU;
+				ops[2].R.rd = 0x1D;
+				ops[2].R.rs = 0x1D;
+				ops[2].R.rt = 0x01;
+
+				return 1;
+
+			}	break;
+			#pragma endregion
 			}
 		}
 

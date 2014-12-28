@@ -11,17 +11,6 @@ int main()
 	size_t cSize = 0;
 
 	pComp = comp.Compile("Test.asm", cSize);
-	//
-	//std::ifstream ifile("Test.vgs", std::ios::in | std::ios::binary | std::ios::ate);
-	//if (!ifile.is_open())
-	//	return 1;
-	//
-	//int fileSize = ifile.tellg();
-	//char * pData = (char*)malloc(fileSize);
-	//ifile.seekg(0, std::ios::beg);
-	//ifile.read(pData, fileSize);
-	//ifile.close();
-
 
 	VGS::System sys(pComp, cSize);
 	sys.Run();
