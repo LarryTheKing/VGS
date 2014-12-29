@@ -8,7 +8,7 @@
 #define EI_MAG2		2	// File identification
 #define EI_MAG3		3	// File identification
 #define EI_CLASS	4	// File class : 1 = 32bit, 2 = 64bit
-#define EI_DATA		5	// Data encoding : 1 = little edian, 2 = big edian
+#define EI_DATA		5	// Data encoding : 1 = little endian, 2 = big endian
 #define EI_VERSION	6	// File version : 1 for original elf
 #define EI_PAD		7	// Start of padding bytes
 
@@ -25,6 +25,9 @@
 
 #define EM_NONE 0	// No machine
 #define EM_MIPS	8	// MIPS
+
+#define EF_MIPS_NOREORDER	1	// .noreorder directive present // IGNORED
+#define EF_MIPS_PIC			2	// Position independant code
 
 #define EV_NONE		0
 #define EV_CURRENT	1

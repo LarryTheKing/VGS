@@ -45,13 +45,13 @@ namespace VGS
 			bool	AddGlobal(const std::string);
 			bool	AddLabel(ProcNode const);
 
-			bool	GenProgTree();
+			bool	GenProgTree(void);
 			unsigned __int32	GenText		(std::string const * );
 			unsigned __int32	GenTextOpS	(std::string const * const, unsigned __int32);
 			unsigned __int32	GenData		(std::string const *, std::string const * const, unsigned __int32);
 			unsigned __int32	GenBss		(std::string const *, std::string const * const);
 
-
+			bool	GenELF();
 		};
 
 	}

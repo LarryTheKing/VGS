@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "..\CPU_OP.h"
+#include "Offset.h"
 
 namespace VGS
 {
@@ -267,18 +268,12 @@ namespace VGS
 				if (pArgs[1] == ".half")
 				{
 					if (!pStack->Align(2))
-					{
-						pStack->Resize(pStack->Capacity() * 2);
-						pStack->Align(2);
-					}
+						return _UI32_MAX;
 				}
 				else if (pArgs[1] == ".word" || pArgs[1] == ".space")
 				{
 					if (!pStack->Align(4))
-					{
-						pStack->Resize(pStack->Capacity() * 2);
-						pStack->Align(4);
-					}
+						return _UI32_MAX;
 				}
 
 				// Add label to list
@@ -325,10 +320,7 @@ namespace VGS
 				pArgs++;
 
 				if (!pStack->Align(2))
-				{
-					pStack->Resize(pStack->Capacity() * 2);
-					pStack->Align(2);
-				}
+					return _UI32_MAX;
 
 				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
 				{
@@ -360,10 +352,7 @@ namespace VGS
 				pArgs++;
 
 				if (!pStack->Align(4))
-				{
-					pStack->Resize(pStack->Capacity() * 2);
-					pStack->Align(4);
-				}
+					return _UI32_MAX;
 
 				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
 				{
@@ -799,6 +788,61 @@ namespace VGS
 			}	break;
 			#pragma endregion
 			}
+		}
+
+		bool Builder::GenELF(void)
+		{
+			DynamicStackAlloc ELF(512);
+		#pragma region EHDR
+			Offset<Elf32_Ehdr> pEhdr (ELF.Alloc<Elf32_Ehdr>(), &ELF);
+			memset(pEhdr.get(), 0x00, sizeof(Elf32_Ehdr));	// Zero header
+			pEhdr->e_ident[EI_MAG0] = ELFMAG0;	// Magic 0x7f
+			pEhdr->e_ident[EI_MAG1] = ELFMAG1;	// 'E'
+			pEhdr->e_ident[EI_MAG2] = ELFMAG2;	// 'L'
+			pEhdr->e_ident[EI_MAG3] = ELFMAG3;	// 'F'
+			pEhdr->e_ident[EI_CLASS]	= 1;	// 32 bit
+			pEhdr->e_ident[EI_DATA]		= 1;	// litle endian
+			pEhdr->e_ident[EI_VERSION]	= 1;	// ELF version 1
+			pEhdr->e_type = ET_REL;
+			pEhdr->e_machine = EM_MIPS;
+			pEhdr->e_version = EV_CURRENT;
+			pEhdr->e_flags = EF_MIPS_PIC;
+			pEhdr->e_ehsize = sizeof(Elf32_Ehdr);
+			pEhdr->e_shentsize = sizeof(Elf32_Shdr);
+		#pragma endregion
+
+		#pragma region RAW
+			Offset<CPU_OP> o_text;
+			if (s_text.Offset())	// Store .text data in elf
+			{
+				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_text.Offset())), &ELF };
+				memcpy(o_text.get(), s_text.Begin(), s_text.Offset);
+			}
+
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_data;
+			if (s_data.Offset())	// Store .data data in elf
+			{
+				o_data = { ELF.Alloc(s_data.Offset()), &ELF };
+				memcpy(o_data.get(), s_data.Begin(), s_data.Offset);
+			}
+
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_rodata;	// Store .rodata data in elf
+			if (s_rodata.Offset())
+			{
+				o_rodata = { ELF.Alloc(s_rodata.Offset()), &ELF };
+				memcpy(o_rodata.get(), s_rodata.Begin(), s_rodata.Offset);
+			}
+
+			if (!ELF.Align(4))	// Align to word
+				return false;
+		#pragma endregion
+
 		}
 	}
 }
