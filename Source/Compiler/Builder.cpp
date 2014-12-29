@@ -36,6 +36,11 @@ namespace VGS
 			s_rela.Reset();
 		}
 
+		bool Builder::Build(char const * const pFile)
+		{
+			return true;
+		}
+
 		void Builder::LoadLanguage(char const * const fileName)
 		{
 			std::ifstream ifile(fileName);
@@ -146,13 +151,14 @@ namespace VGS
 			if (!ValidateName(s))
 				return false;
 
-			for (int i = 0; i < Globals.size(); i++)
+			for (unsigned __int32 i = 0; i < Globals.size(); i++)
 			{	
 				if (s == Globals[i].ID)
-					return;
+					return true;
 			}
 
 			Globals.push_back(ProcNode(s, 0, 0));
+			return true;
 		}
 
 		bool Builder::AddLabel(ProcNode const n)
@@ -222,7 +228,7 @@ namespace VGS
 				else if (mode == MODE_TEXT)
 				{
 					if (cWord[cWord.length() - 1] == ':')
-						if (!AddLabel(ProcNode(cWord.substr(0, cWord.length() - 1), s_text.Offset, NODE_TYPE_OFFSET_T)))
+						if (!AddLabel(ProcNode(cWord.substr(0, cWord.length() - 1), s_text.Offset(), NODE_TYPE_OFFSET_T)))
 							return false;
 					else if (unsigned __int32 s = GenText(&Litterature[i]) != _UI32_MAX)
 						i += s;
@@ -438,7 +444,7 @@ namespace VGS
 
 				int index = 0;
 
-				for (int i = 0; i < val.length(); i++)
+				for (unsigned __int32 i = 0; i < val.length(); i++)
 				{
 					if (val[i] == '\\')
 					{
@@ -807,28 +813,28 @@ namespace VGS
 			}
 		}
 
-		bool Builder::GenELF(void)
+		bool Builder::GenELF(char const * const pFile)
 		{
 			DynamicStackAlloc ELF(512);
 			DynamicStackAlloc s_hdr(128);	// Temp storage for section headers
 			
 			Elf32_Half cursec = 1;	// Tracks current Elf32_Shdr index, starts at 1 because UNDEF section = 0
 		#pragma region EHDR
-			Offset<Elf32_Ehdr> pEhdr (ELF.Alloc<Elf32_Ehdr>(), &ELF);
-			memset(pEhdr.get(), 0x00, sizeof(Elf32_Ehdr));	// Zero header
-			pEhdr->e_ident[EI_MAG0] = ELFMAG0;	// Magic 0x7f
-			pEhdr->e_ident[EI_MAG1] = ELFMAG1;	// 'E'
-			pEhdr->e_ident[EI_MAG2] = ELFMAG2;	// 'L'
-			pEhdr->e_ident[EI_MAG3] = ELFMAG3;	// 'F'
-			pEhdr->e_ident[EI_CLASS]	= 1;	// 32 bit
-			pEhdr->e_ident[EI_DATA]		= 1;	// litle endian
-			pEhdr->e_ident[EI_VERSION]	= 1;	// ELF version 1
-			pEhdr->e_type = ET_REL;
-			pEhdr->e_machine = EM_MIPS;
-			pEhdr->e_version = EV_CURRENT;
-			pEhdr->e_flags = EF_MIPS_PIC;
-			pEhdr->e_ehsize = sizeof(Elf32_Ehdr);
-			pEhdr->e_shentsize = sizeof(Elf32_Shdr);
+			Offset<Elf32_Ehdr> o_ehdr (ELF.Offset(), &ELF);
+			memset(ELF.Alloc<Elf32_Ehdr>(), 0x00, sizeof(Elf32_Ehdr));	// Zero header
+			o_ehdr->e_ident[EI_MAG0] = ELFMAG0;	// Magic 0x7f
+			o_ehdr->e_ident[EI_MAG1] = ELFMAG1;	// 'E'
+			o_ehdr->e_ident[EI_MAG2] = ELFMAG2;	// 'L'
+			o_ehdr->e_ident[EI_MAG3] = ELFMAG3;	// 'F'
+			o_ehdr->e_ident[EI_CLASS]	= 1;	// 32 bit
+			o_ehdr->e_ident[EI_DATA]		= 1;	// litle endian
+			o_ehdr->e_ident[EI_VERSION]	= 1;	// ELF version 1
+			o_ehdr->e_type = ET_REL;
+			o_ehdr->e_machine = EM_MIPS;
+			o_ehdr->e_version = EV_CURRENT;
+			o_ehdr->e_flags = EF_MIPS_PIC;
+			o_ehdr->e_ehsize = sizeof(Elf32_Ehdr);
+			o_ehdr->e_shentsize = sizeof(Elf32_Shdr);
 		#pragma endregion
 
 		#pragma region UNDEFINED_SECTION
@@ -842,11 +848,12 @@ namespace VGS
 			if (s_text.Offset())	// Store .text data in elf and create eshdr
 			{
 				// data
-				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_text.Offset())), &ELF };
-				memcpy(o_text.get(), s_text.Begin(), s_text.Offset);
+				o_text = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_text.Offset()), s_text.Begin(), s_text.Offset());
 						
 				// shdr
-				o_text_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_text_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_text = cursec++;
 
 				o_text_hdr->sh_name			= AddString(".text");
@@ -868,11 +875,12 @@ namespace VGS
 			if (s_data.Offset())	// Store .data data in elf and create shdr
 			{
 				// data
-				o_data = { ELF.Alloc(s_data.Offset()), &ELF };
-				memcpy(o_data.get(), s_data.Begin(), s_data.Offset);
+				o_data = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_data.Offset()), s_data.Begin(), s_data.Offset());
 
 				// shdr
-				o_data_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_data_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_data = cursec++;
 
 				o_data_hdr->sh_name			= AddString(".data");
@@ -894,11 +902,12 @@ namespace VGS
 			if (s_rodata.Offset())	// Store .rodata data in elf and create shdr
 			{
 				// data
-				o_rodata = { ELF.Alloc(s_rodata.Offset()), &ELF };
-				memcpy(o_rodata.get(), s_rodata.Begin(), s_rodata.Offset);
+				o_rodata = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_rodata.Offset()), s_rodata.Begin(), s_rodata.Offset());
 
 				// shdr
-				o_rodata_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_rodata_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_rodata = cursec++;
 
 				o_rodata_hdr->sh_name		= AddString(".rodata");
@@ -914,13 +923,13 @@ namespace VGS
 			if (!ELF.Align(4))	// Align to word
 				return false;
 
-			Offset<char> o_bss;
 			Offset<Elf32_Shdr>	o_bss_hdr;
 			Elf32_Half si_bss = 0;
 			if (s_bss)	// Create .bss shdr
 			{
 				// shdr
-				o_bss_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_bss_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_bss = cursec++;
 
 				o_bss_hdr->sh_name			= AddString(".bss");
@@ -936,7 +945,7 @@ namespace VGS
 			if (!ELF.Align(4))	// Align to word
 				return false;
 
-			Offset<char> o_symtab;
+			Offset<Elf32_Sym> o_symtab;
 			Offset<Elf32_Shdr>	o_symtab_hdr;
 			Elf32_Half si_symtab = 0;
 			if (Labels.size())	//
@@ -944,11 +953,12 @@ namespace VGS
 				Elf32_Off o_globals = GenSymtab(si_text, si_data, si_rodata, si_bss);
 
 				// data
-				o_symtab = { ELF.Alloc(s_symtab.Offset()), &ELF };
-				memcpy(o_symtab.get(), s_symtab.Begin(), s_symtab.Offset);
+				o_symtab = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_symtab.Offset()), s_symtab.Begin(), s_symtab.Offset());
 
 				// shdr
-				o_symtab_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_symtab_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_symtab = cursec++;
 
 				o_rodata_hdr->sh_name		= AddString(".symtab");
@@ -961,19 +971,23 @@ namespace VGS
 		#pragma endregion
 
 		#pragma region RELA_TEXT
-			Offset<CPU_OP>		o_rela;
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<Elf32_Rela>	o_rela;
 			Offset<Elf32_Shdr>	o_rela_hdr;
 			Elf32_Half si_rela = 0;
 			if (References.size())	// Store rela data in elf and create eshdr
 			{
-				GenRela();
+				GenRela();	// Generates .rela data
 
 				// data
-				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_rela.Offset())), &ELF };
-				memcpy(o_rela.get(), s_rela.Begin(), s_rela.Offset);
+				o_text = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_rela.Offset()), s_rela.Begin(), s_rela.Offset());
 
 				// shdr
-				o_rela_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				o_rela_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_rela = cursec++;
 
 				o_rela_hdr->sh_name = AddString(".rela.text");
@@ -986,14 +1000,63 @@ namespace VGS
 				o_rela_hdr->sh_info = si_text;
 			}
 		#pragma endregion
+
+		#pragma region STRTAB
+			Offset<char>		o_strtab;
+			Offset<Elf32_Shdr>	o_strtab_hdr;
+			Elf32_Half si_strtab = 0;
+			if (s_strtab.Offset())	// Store .strtab data in elf and create eshdr
+			{
+				// shdr
+				o_strtab_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
+				
+				si_strtab = cursec++;
+
+				o_strtab_hdr->sh_name	= AddString(".strtab");
+				o_text_hdr->sh_type		= SHT_STRTAB;
+				o_text_hdr->sh_flags	= 0;
+
+				// data
+				o_strtab = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_strtab.Offset()), s_strtab.Begin(), s_strtab.Offset());
+
+				// shdr				
+				o_strtab_hdr->sh_offset		= o_strtab.offset;
+				o_strtab_hdr->sh_size		= s_strtab.Offset();
+				o_strtab_hdr->sh_addralign	= 0x1;
+
+				o_ehdr->e_shstrndx = si_strtab;
+			}
+		#pragma endregion
+
+		#pragma region SHDR
+			Offset<Elf32_Shdr>	o_shdr;
+			{
+				o_shdr = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_hdr.Offset()), s_hdr.Begin(), s_hdr.Offset());
+
+				o_ehdr->e_shoff = o_shdr.offset;
+			}
+		#pragma endregion
+
+			std::ofstream fout(pFile, std::ios::out | std::ios::binary | std::ios::trunc);
+			if (!fout.is_open())
+			{
+				std::cout << "ERROR : Unable to write to file " << pFile << std::endl;
+				return false;
+			}
+
+			fout.write(ELF.Begin(), ELF.Offset());
+			fout.close();
 		}
 
 		Elf32_Off Builder::GenSymtab(Elf32_Half const si_text, Elf32_Half const si_data, Elf32_Half const si_rodata, Elf32_Half const si_bss)
 		{
 			// Mark Global Symbols
-			for (int l = 0; l < Labels.size(); l++)
+			for (unsigned __int32 l = 0; l < Labels.size(); l++)
 			{
-				for (int g = 0; g < Globals.size(); g++)	// Is this a global label
+				for (unsigned __int32 g = 0; g < Globals.size(); g++)	// Is this a global label
 				{
 					if (Labels[l].ID == Globals[g].ID)
 					{
@@ -1005,10 +1068,10 @@ namespace VGS
 			}
 
 			// Detect Undefined Labels
-			for (int r = 0; r < References.size(); r++)
+			for (unsigned __int32 r = 0; r < References.size(); r++)
 			{
 				bool defined = false;
-				for (int l = 0; l < Labels.size(); l++)
+				for (unsigned __int32 l = 0; l < Labels.size(); l++)
 				{
 					if (Labels[l].ID == References[r].ID)
 					{
@@ -1022,7 +1085,7 @@ namespace VGS
 			}
 
 			// Add Local and Undefined Labels
-			for (int l = 0; l < Labels.size(); l++)
+			for (unsigned __int32 l = 0; l < Labels.size(); l++)
 			{
 				if (!Labels[l].i.p1)
 				{
@@ -1062,7 +1125,7 @@ namespace VGS
 			if (Globals.size())
 			{
 				// Add Local and Undefined Labels
-				for (int l = 0; l < Labels.size(); l++)
+				for (unsigned __int32 l = 0; l < Labels.size(); l++)
 				{
 					if (!Labels[l].i.p1)
 					{
@@ -1108,11 +1171,11 @@ namespace VGS
 			Elf32_Sym const * const pSym = reinterpret_cast<Elf32_Sym*>(s_symtab.Begin());
 			Elf32_Sym const * const pEnd = reinterpret_cast<Elf32_Sym*>(s_symtab.End());
 
-			for (int r = 0; r < References.size(); r++)
+			for (unsigned __int32 r = 0; r < References.size(); r++)
 			{
-				for (int s = 0; pSym + s != pEnd; s++)
+				for (unsigned __int32 s = 0; pSym + s != pEnd; s++)
 				{
-					if (strcmp(References[r].ID.c_str(), s_strtab.Begin + pSym[s].st_name) == 0)
+					if (strcmp(References[r].ID.c_str(), s_strtab.Begin() + pSym[s].st_name) == 0)
 					{
 						Elf32_Rela * p_rela = s_rela.Alloc<Elf32_Rela>();
 						p_rela->r_offset = References[r].i.Value;

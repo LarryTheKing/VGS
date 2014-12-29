@@ -14,6 +14,8 @@ namespace VGS
 
 		public:
 			Offset() : offset(0), pStack(nullptr) {}
+			Offset(size_t const offset, DynamicStackAlloc * pStack)
+				: offset(offset), pStack(pStack) {}
 			Offset(T* pAbs, DynamicStackAlloc *	pStack)
 				:pStack(pStack)
 			{
@@ -25,7 +27,7 @@ namespace VGS
 			T&			operator*()			{ return *get(); }
 			const T&	operator*() const	{ return *get(); }
 			T*			operator->()		{ return get(); }
-			const T*	operator->()		{ return get(); }
+			const T*	operator->() const	{ return get(); }
 		};
 	}
 }

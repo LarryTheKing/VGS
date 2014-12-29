@@ -33,6 +33,7 @@ namespace VGS
 			Builder(char const * const);
 			~Builder();
 
+			bool	Build(char const * const);
 			void	Reset(void);
 
 		private:
@@ -53,7 +54,7 @@ namespace VGS
 
 			Elf32_Word AddString(char const * const);
 
-			bool		GenELF();
+			bool		GenELF(char const * const);
 			Elf32_Off	GenSymtab(Elf32_Half const, Elf32_Half const, Elf32_Half const, Elf32_Half const);
 			void		GenRela(void);
 		};
