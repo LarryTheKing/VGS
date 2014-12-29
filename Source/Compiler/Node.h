@@ -21,6 +21,7 @@
 #define NODE_TYPE_RD		0xF6
 #define NODE_TYPE_SHAMT		0xF7
 #define NODE_TYPE_FUNCT		0xF8
+#define NODE_TYPE_RTARGET	0xF9
 #define NODE_TYPE_OP_S		0xFF	// Special ops, ie la	
 
 namespace VGS
