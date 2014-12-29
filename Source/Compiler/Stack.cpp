@@ -99,6 +99,9 @@ namespace VGS
 		{
 			assert(reserve >= required);
 
+			if (!reserve)
+				return cursor;
+
 			if (cursor + reserve > end)
 			{
 				// Attempt to resize stack
