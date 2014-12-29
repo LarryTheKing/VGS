@@ -8,6 +8,7 @@
 #define NODE_TYPE_OFFSET_T	0x10	// Text : ROM
 #define NODE_TYPE_OFFSET_D	0x11	// Data : RAM
 #define NODE_TYPE_OFFSET_R	0x12	// Read only data : ROM
+#define NODE_TYPE_OFFSET_B	0x13	// BSS
 #define NODE_TYPE_REGION	0x20
 #define NODE_TYPE_LOWER		0x30
 #define NODE_TYPE_UPPER		0x31

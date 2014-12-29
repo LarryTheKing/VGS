@@ -86,9 +86,10 @@ namespace VGS
 			bool	Resize(size_t size);
 			void	Unwind(void const * p);
 
-			char * const Begin() const { return begin; }
-			char * const Cursor() const { return cursor; }
-			char * const End() const { return end; }
+			char * const	Begin() const { return begin; }
+			char * const	Cursor() const { return cursor; }
+			char * const	End() const { return end; }
+			size_t	const	Offset(void) const { return cursor - begin; }
 
 		public:
 			void Inherit(DynamicStackAlloc * const other)

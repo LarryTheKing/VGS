@@ -50,6 +50,8 @@
 #define SHF_ALLOC		0x2	// Section occupies memory during process exec
 #define SHF_EXECINSTR	0x4	// Section contains executable machine code
 
+//// Symbol Table Entries
+
 #define ELF32_ST_BIND(i)	((i) >> 4)		// Extracts bind info
 #define ELF32_ST_TYPE(i)	((i)& 0 x f)	// Extracts type
 #define ELF32_ST_INFO(b, t)	(((b) << 4) + ((t)& 0 x f)
@@ -71,6 +73,8 @@
 #define SHN_UNDEF	0		// 
 #define SHN_ABS		0xfff1	// Symbol has absoule value
 #define SHN_COMMON	0xfff2	// External (a.k.a. stored in RAM) global variable
+
+//// Relocation entries
 
 #define ELF32_R_SYM(i)		((i) >> 8)				// Extracts symbol table index
 #define ELF32_R_TYPE(i)		((unsigned char) (i))	// Extracts relocation operation
@@ -134,7 +138,7 @@ namespace VGS
 			Elf32_Word		st_name;		// Specifies name of symbol table entry. Index into string table
 			Elf32_Addr		st_value;		// Gives the value associated with the symbol
 			Elf32_Word		st_size;		// Size of symbol
-			unsigned char	st_info;		// Hold st_bind, st_type
+			unsigned char	st_info;		// Holds st_bind, st_type
 			unsigned char	st_other;		// Always 0
 			Elf32_Half		st_shndx;		// Section header index
 		};
