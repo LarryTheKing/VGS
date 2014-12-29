@@ -57,7 +57,7 @@
 
 #define ELF32_ST_BIND(i)	((i) >> 4)		// Extracts bind info
 #define ELF32_ST_TYPE(i)	((i)& 0 x f)	// Extracts type
-#define ELF32_ST_INFO(b, t)	(((b) << 4) + ((t)& 0 x f)
+#define ELF32_ST_INFO(b, t)	(((b) << 4) + ((t)& 0xf))
 
 #define STB_LOCAL	0	// Symbol NOT visible outside its object file
 #define STB_GLOBAL	1	// Symbol visible outside its object file
@@ -81,7 +81,7 @@
 
 #define ELF32_R_SYM(i)		((i) >> 8)				// Extracts symbol table index
 #define ELF32_R_TYPE(i)		((unsigned char) (i))	// Extracts relocation operation
-#define ELF32_R_INFO(s, t)	(((s) << 8) + (unsigned char) (t)
+#define ELF32_R_INFO(s, t)	(((s) << 8) + (unsigned char) (t))
 
 #define R_MIPS_NONE		0	//
 #define R_MIPS_16		1	// S + sign-extend(A)
@@ -89,7 +89,8 @@
 #define R_MIPS_REL32	3	// A - EA + S
 #define R_MIPS_26		4	// (((A<<2) | (P & 0xF0000000) + S) >> 2
 #define R_MIPS_HI16		5	// 
-#define R_MIPS_LO16		6	// 
+#define R_MIPS_LO16		6	//
+#define R_MIPS_PC16		10	// (((A<<2) | (P & 0xF0000000) + S) >> 2
 
 
 namespace VGS
@@ -146,13 +147,13 @@ namespace VGS
 			Elf32_Half		st_shndx;		// Section header index
 		};
 
-		struct Elf_Rel		// Relocation Entry
+		struct Elf32_Rel		// Relocation Entry
 		{
 			Elf32_Addr		r_offset;		// The location of where to apply the relocation action
 			Elf32_Word		r_info;			// Stores both symbol table index and type of relocation
 		};
 
-		struct Elf_Rela		// Relocation Entry
+		struct Elf32_Rela		// Relocation Entry
 		{
 			Elf32_Addr		r_offset;		// The location of where to apply the relocation action
 			Elf32_Word		r_info;			// Stores both symbol table index and type of relocation

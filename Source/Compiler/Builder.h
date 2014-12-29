@@ -18,15 +18,15 @@ namespace VGS
 
 			std::vector<ProcNode>		Labels;
 			std::vector<ProcNode>		References;
-			std::vector<std::string>	Globals;
+			std::vector<ProcNode>	Globals;
 
 			DynamicStackAlloc	s_text;		// .text data
 			DynamicStackAlloc	s_data;		// .data
 			DynamicStackAlloc	s_rodata;	// .rodata
 			unsigned __int32	s_bss;		// .bss
 
-			DynamicStackAlloc	s_string;	// .strtab
-			DynamicStackAlloc	s_symbol;	// .symtab
+			DynamicStackAlloc	s_strtab;	// .strtab
+			DynamicStackAlloc	s_symtab;	// .symtab
 			DynamicStackAlloc	s_rela;		// .rela.text
 
 		public:
@@ -51,7 +51,11 @@ namespace VGS
 			unsigned __int32	GenData		(std::string const *, std::string const * const, unsigned __int32);
 			unsigned __int32	GenBss		(std::string const *, std::string const * const);
 
-			bool	GenELF();
+			Elf32_Word AddString(char const * const);
+
+			bool		GenELF();
+			Elf32_Off	GenSymtab(Elf32_Half const, Elf32_Half const, Elf32_Half const, Elf32_Half const);
+			void		GenRela(void);
 		};
 
 	}

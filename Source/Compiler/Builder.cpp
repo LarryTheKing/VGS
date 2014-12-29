@@ -14,7 +14,7 @@ namespace VGS
 	{
 
 		Builder::Builder(char const * const fLang)
-			: s_text(128), s_data(128), s_rodata(128), s_bss(0), s_string(128), s_symbol(128), s_rela(128)
+			: s_text(128), s_data(128), s_rodata(128), s_bss(0), s_strtab(128), s_symtab(128), s_rela(128)
 		{
 			LoadLanguage(fLang);
 		}
@@ -31,6 +31,9 @@ namespace VGS
 			s_data.Reset();
 			s_rodata.Reset();
 			s_bss = 0;
+			s_strtab.Reset(); s_strtab.Alloc<char>();	// First byte is always '\0'
+			s_symtab.Reset();
+			s_rela.Reset();
 		}
 
 		void Builder::LoadLanguage(char const * const fileName)
@@ -145,11 +148,11 @@ namespace VGS
 
 			for (int i = 0; i < Globals.size(); i++)
 			{	
-				if (s == Globals[i])
+				if (s == Globals[i].ID)
 					return;
 			}
 
-			Globals.push_back(s);
+			Globals.push_back(ProcNode(s, 0, 0));
 		}
 
 		bool Builder::AddLabel(ProcNode const n)
@@ -161,7 +164,9 @@ namespace VGS
 			{
 				if (n.ID == Labels[i].ID)
 				{
-					std::cout << "ERROR : Label redefinition -" << n.ID << std::endl;
+					if (n.i.Value != _UI32_MAX)
+						std::cout << "ERROR : Label redefinition -" << n.ID << std::endl;
+
 					return false;
 				}
 			}
@@ -570,7 +575,7 @@ namespace VGS
 			if (baseNode.t8 == NODE_TYPE_OP_S)
 				return GenTextOpS(pArgs + 1, baseNode.Value);
 			if (baseNode.t8 != NODE_TYPE_OP)
-				return -1;
+				return _UI32_MAX;
 
 
 			CPU_OP * op = s_text.Alloc<CPU_OP>();
@@ -608,7 +613,7 @@ namespace VGS
 					// Was this maybe supposed to be a label?
 					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
 					{
-						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), (NODE_TYPE_OFFSET << 8) || NODE_TYPE_IMMEDIATE));
+						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_16));
 					}
 					break;
 				case NODE_TYPE_SHAMT:
@@ -621,7 +626,7 @@ namespace VGS
 					if (p.Type == NODE_TYPE_ADDRESS && p.Value)
 						op->J.target = p.Value >> 2;
 					else
-						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), NODE_TYPE_TARGET));
+						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_26));
 				}
 				}	break;
 				case NODE_TYPE_OFFSET:
@@ -636,10 +641,11 @@ namespace VGS
 					else
 						op->I.u = offset;
 
-					// Was this maybe supposed to be a label?
+					// Was this maybe supposed to be zero
 					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
 					{
-						References.push_back(ProcNode(pArgs[nArgs].substr(0, paren), reinterpret_cast<char*>(op)-s_text.Begin(), NODE_TYPE_TARGET));
+						std::cout << "ERROR : Offset must be a number - " << pArgs[nArgs] << std::endl;
+						return _UI32_MAX;
 					}
 
 					if (paren != std::string::npos)
@@ -648,12 +654,23 @@ namespace VGS
 						regArg.pop_back();	// Should remove ')'
 						iNode regNode = MatchNode(regArg);
 						if (regNode.t8 != NODE_TYPE_REGISTER)
-							return -1;
+							return _UI32_MAX;
 
 						op->I.rs = regNode.Value;
 					}
 
 				}	break;
+				case NODE_TYPE_RTARGET:
+				{
+					op->I.i = strtol(pArgs[nArgs].data(), nullptr, 0);
+
+					// Was this maybe supposed to be a label?
+					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
+					{
+						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_PC16));
+					}
+				}	break;
+
 				}
 			}
 
@@ -669,7 +686,7 @@ namespace VGS
 			{
 				iNode p1 = MatchNode(pArgs[0]);
 				if (p1.t8 != NODE_TYPE_REGISTER)
-					return -1;
+					return _UI32_MAX;
 
 				long val = strtol(pArgs[1].data(), nullptr, 0);
 
@@ -687,8 +704,8 @@ namespace VGS
 				// Was this maybe supposed to be a label?
 				if (val == 0 && pArgs[1][0] != '0')
 				{
-					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops)-s_text.Begin(), (NODE_TYPE_UPPER << 8) | NODE_TYPE_IMMEDIATE));
-					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops + 1) - s_text.Begin(), (NODE_TYPE_LOWER << 8) | NODE_TYPE_IMMEDIATE));
+					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops)-s_text.Begin(), R_MIPS_HI16));
+					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops + 1) - s_text.Begin(), R_MIPS_LO16));
 				}
 
 				return 2;
@@ -699,7 +716,7 @@ namespace VGS
 			{
 				iNode p1 = MatchNode(pArgs[0]);
 				if (p1.t8 != NODE_TYPE_REGISTER)
-					return -1;
+					return _UI32_MAX;
 
 				long val = strtol(pArgs[1].data(), nullptr, 0);
 
@@ -736,7 +753,7 @@ namespace VGS
 			{
 				iNode p1 = MatchNode(pArgs[0]);
 				if (p1.t8 != NODE_TYPE_REGISTER)
-					return -1;
+					return _UI32_MAX;
 
 				CPU_OP * ops = s_text.Alloc<CPU_OP>(3);
 				ops[0].WORD = CPU_LUI;
@@ -764,7 +781,7 @@ namespace VGS
 			{
 				iNode p1 = MatchNode(pArgs[0]);
 				if (p1.t8 != NODE_TYPE_REGISTER)
-					return -1;
+					return _UI32_MAX;
 
 				CPU_OP * ops = s_text.Alloc<CPU_OP>(3);
 				ops[0].WORD = CPU_LUI;
@@ -793,6 +810,9 @@ namespace VGS
 		bool Builder::GenELF(void)
 		{
 			DynamicStackAlloc ELF(512);
+			DynamicStackAlloc s_hdr(128);	// Temp storage for section headers
+			
+			Elf32_Half cursec = 1;	// Tracks current Elf32_Shdr index, starts at 1 because UNDEF section = 0
 		#pragma region EHDR
 			Offset<Elf32_Ehdr> pEhdr (ELF.Alloc<Elf32_Ehdr>(), &ELF);
 			memset(pEhdr.get(), 0x00, sizeof(Elf32_Ehdr));	// Zero header
@@ -811,38 +831,312 @@ namespace VGS
 			pEhdr->e_shentsize = sizeof(Elf32_Shdr);
 		#pragma endregion
 
-		#pragma region RAW
-			Offset<CPU_OP> o_text;
-			if (s_text.Offset())	// Store .text data in elf
-			{
-				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_text.Offset())), &ELF };
-				memcpy(o_text.get(), s_text.Begin(), s_text.Offset);
-			}
-
-			if (!ELF.Align(4))	// Align to word
-				return false;
-
-			Offset<char> o_data;
-			if (s_data.Offset())	// Store .data data in elf
-			{
-				o_data = { ELF.Alloc(s_data.Offset()), &ELF };
-				memcpy(o_data.get(), s_data.Begin(), s_data.Offset);
-			}
-
-			if (!ELF.Align(4))	// Align to word
-				return false;
-
-			Offset<char> o_rodata;	// Store .rodata data in elf
-			if (s_rodata.Offset())
-			{
-				o_rodata = { ELF.Alloc(s_rodata.Offset()), &ELF };
-				memcpy(o_rodata.get(), s_rodata.Begin(), s_rodata.Offset);
-			}
-
-			if (!ELF.Align(4))	// Align to word
-				return false;
+		#pragma region UNDEFINED_SECTION
+			memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));	// Add UNDEF section
 		#pragma endregion
 
+		#pragma region TEXT
+			Offset<CPU_OP>		o_text;
+			Offset<Elf32_Shdr>	o_text_hdr;
+			Elf32_Half si_text = 0;
+			if (s_text.Offset())	// Store .text data in elf and create eshdr
+			{
+				// data
+				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_text.Offset())), &ELF };
+				memcpy(o_text.get(), s_text.Begin(), s_text.Offset);
+						
+				// shdr
+				o_text_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_text = cursec++;
+
+				o_text_hdr->sh_name			= AddString(".text");
+				o_text_hdr->sh_type			= SHT_PROGBITS;
+				o_text_hdr->sh_flags		= SHF_ALLOC | SHF_EXECINSTR;
+				o_text_hdr->sh_offset		= o_text.offset;
+				o_text_hdr->sh_size			= s_text.Offset();
+				o_text_hdr->sh_addralign	= 0x04;
+			}
+		#pragma endregion
+
+		#pragma region DATA
+			if (!ELF.Align(4))	// Align to word
+				return false;
+			
+			Offset<char> o_data;
+			Offset<Elf32_Shdr>	o_data_hdr;
+			Elf32_Half si_data = 0;
+			if (s_data.Offset())	// Store .data data in elf and create shdr
+			{
+				// data
+				o_data = { ELF.Alloc(s_data.Offset()), &ELF };
+				memcpy(o_data.get(), s_data.Begin(), s_data.Offset);
+
+				// shdr
+				o_data_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_data = cursec++;
+
+				o_data_hdr->sh_name			= AddString(".data");
+				o_data_hdr->sh_type			= SHT_PROGBITS;
+				o_data_hdr->sh_flags		= SHF_WRITE | SHF_ALLOC;
+				o_data_hdr->sh_offset		= o_data.offset;
+				o_data_hdr->sh_size			= s_data.Offset();
+				o_data_hdr->sh_addralign	= 0x04;				
+			}
+		#pragma endregion
+
+		#pragma region RODATA
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_rodata;
+			Offset<Elf32_Shdr>	o_rodata_hdr;
+			Elf32_Half si_rodata = 0;
+			if (s_rodata.Offset())	// Store .rodata data in elf and create shdr
+			{
+				// data
+				o_rodata = { ELF.Alloc(s_rodata.Offset()), &ELF };
+				memcpy(o_rodata.get(), s_rodata.Begin(), s_rodata.Offset);
+
+				// shdr
+				o_rodata_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_rodata = cursec++;
+
+				o_rodata_hdr->sh_name		= AddString(".rodata");
+				o_rodata_hdr->sh_type		= SHT_PROGBITS;
+				o_rodata_hdr->sh_offset		= o_rodata.offset;
+				o_rodata_hdr->sh_flags		= SHF_ALLOC;
+				o_rodata_hdr->sh_size		= s_rodata.Offset();
+				o_rodata_hdr->sh_addralign	= 0x04;
+			}
+		#pragma endregion
+
+		#pragma region BSS
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_bss;
+			Offset<Elf32_Shdr>	o_bss_hdr;
+			Elf32_Half si_bss = 0;
+			if (s_bss)	// Create .bss shdr
+			{
+				// shdr
+				o_bss_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_bss = cursec++;
+
+				o_bss_hdr->sh_name			= AddString(".bss");
+				o_bss_hdr->sh_type			= SHT_NOBITS;
+				o_bss_hdr->sh_flags			= SHF_WRITE | SHF_ALLOC;
+				o_bss_hdr->sh_size			= s_bss;
+				o_bss_hdr->sh_addralign		= 0x04;
+
+			}
+		#pragma endregion
+
+		#pragma region SYMTAB
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_symtab;
+			Offset<Elf32_Shdr>	o_symtab_hdr;
+			Elf32_Half si_symtab = 0;
+			if (Labels.size())	//
+			{
+				Elf32_Off o_globals = GenSymtab(si_text, si_data, si_rodata, si_bss);
+
+				// data
+				o_symtab = { ELF.Alloc(s_symtab.Offset()), &ELF };
+				memcpy(o_symtab.get(), s_symtab.Begin(), s_symtab.Offset);
+
+				// shdr
+				o_symtab_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_symtab = cursec++;
+
+				o_rodata_hdr->sh_name		= AddString(".symtab");
+				o_rodata_hdr->sh_type		= SHT_SYMTAB;
+				o_rodata_hdr->sh_offset		= o_symtab.offset;
+				o_rodata_hdr->sh_size		= s_symtab.Offset();
+				o_symtab_hdr->sh_addralign	= 0x04;
+				o_symtab_hdr->sh_entsize = sizeof(Elf32_Sym);
+			}
+		#pragma endregion
+
+		#pragma region RELA_TEXT
+			Offset<CPU_OP>		o_rela;
+			Offset<Elf32_Shdr>	o_rela_hdr;
+			Elf32_Half si_rela = 0;
+			if (References.size())	// Store rela data in elf and create eshdr
+			{
+				GenRela();
+
+				// data
+				o_text = { reinterpret_cast<CPU_OP*>(ELF.Alloc(s_rela.Offset())), &ELF };
+				memcpy(o_rela.get(), s_rela.Begin(), s_rela.Offset);
+
+				// shdr
+				o_rela_hdr = { reinterpret_cast<Elf32_Shdr*>(s_hdr.Alloc<Elf32_Shdr>()), &s_hdr };
+				si_rela = cursec++;
+
+				o_rela_hdr->sh_name = AddString(".rela.text");
+				o_rela_hdr->sh_type = SHT_RELA;
+				o_rela_hdr->sh_flags = 0;
+				o_rela_hdr->sh_offset = o_rela.offset;
+				o_rela_hdr->sh_size = s_rela.Offset();
+				o_text_hdr->sh_addralign = 0x04;
+				o_rela_hdr->sh_link = si_symtab;
+				o_rela_hdr->sh_info = si_text;
+			}
+		#pragma endregion
+		}
+
+		Elf32_Off Builder::GenSymtab(Elf32_Half const si_text, Elf32_Half const si_data, Elf32_Half const si_rodata, Elf32_Half const si_bss)
+		{
+			// Mark Global Symbols
+			for (int l = 0; l < Labels.size(); l++)
+			{
+				for (int g = 0; g < Globals.size(); g++)	// Is this a global label
+				{
+					if (Labels[l].ID == Globals[g].ID)
+					{
+						Globals[l].i.Value = l;		// Reference label
+						Labels[l].i.p1 = 1;			// Denotes thet this is a "global" label	
+						break;
+					}
+				}
+			}
+
+			// Detect Undefined Labels
+			for (int r = 0; r < References.size(); r++)
+			{
+				bool defined = false;
+				for (int l = 0; l < Labels.size(); l++)
+				{
+					if (Labels[l].ID == References[r].ID)
+					{
+						defined = true;
+						break;
+					}
+				}
+
+				if (!defined)
+					AddLabel(ProcNode(References[r].ID, _UI32_MAX, NODE_TYPE_NONE));
+			}
+
+			// Add Local and Undefined Labels
+			for (int l = 0; l < Labels.size(); l++)
+			{
+				if (!Labels[l].i.p1)
+				{
+					Elf32_Sym* pSym = s_symtab.Alloc<Elf32_Sym>();
+					pSym->st_name	= AddString(Labels[l].ID.c_str());
+					pSym->st_value	= Labels[l].i.Value;
+					pSym->st_size	= 0;
+					pSym->st_other	= 0;
+
+					switch (Labels[l].i.t8)
+					{
+					case(NODE_TYPE_OFFSET_T) :
+						pSym->st_shndx = si_text;
+						pSym->st_info = ELF32_ST_INFO(STB_LOCAL, STT_FUNC);
+						break;
+					case(NODE_TYPE_OFFSET_D) :
+						pSym->st_shndx = si_data;
+						pSym->st_info = ELF32_ST_INFO(STB_LOCAL, STT_OBJECT);
+						break;
+					case(NODE_TYPE_OFFSET_R) :
+						pSym->st_shndx = si_rodata;
+						pSym->st_info = ELF32_ST_INFO(STB_LOCAL, STT_OBJECT);
+						break;
+					case(NODE_TYPE_OFFSET_B) :
+						pSym->st_shndx = si_bss;
+						pSym->st_info = ELF32_ST_INFO(STB_LOCAL, STT_OBJECT);
+						break;
+					default:
+						pSym->st_shndx = SHN_UNDEF;
+						pSym->st_info = ELF32_ST_INFO(STB_LOCAL, STT_NOTYPE);
+						break;
+					}
+				}
+			}
+
+			Elf32_Off o_globals = 0;
+			if (Globals.size())
+			{
+				// Add Local and Undefined Labels
+				for (int l = 0; l < Labels.size(); l++)
+				{
+					if (!Labels[l].i.p1)
+					{
+						Elf32_Sym* pSym = s_symtab.Alloc<Elf32_Sym>();
+						pSym->st_name = AddString(Labels[l].ID.c_str());
+						pSym->st_value = Labels[l].i.Value;
+						pSym->st_size = 0;
+						pSym->st_other = 0;
+
+						switch (Labels[l].i.t8)
+						{
+						case(NODE_TYPE_OFFSET_T) :
+							pSym->st_shndx = si_text;
+							pSym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_FUNC);
+							break;
+						case(NODE_TYPE_OFFSET_D) :
+							pSym->st_shndx = si_data;
+							pSym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
+							break;
+						case(NODE_TYPE_OFFSET_R) :
+							pSym->st_shndx = si_rodata;
+							pSym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
+							break;
+						case(NODE_TYPE_OFFSET_B) :
+							pSym->st_shndx = si_bss;
+							pSym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
+							break;
+						default:
+							pSym->st_shndx = SHN_UNDEF;
+							pSym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE);
+							break;
+						}
+					}
+				}
+			}
+
+
+			return o_globals;
+		}
+
+		void Builder::GenRela(void)
+		{
+			Elf32_Sym const * const pSym = reinterpret_cast<Elf32_Sym*>(s_symtab.Begin());
+			Elf32_Sym const * const pEnd = reinterpret_cast<Elf32_Sym*>(s_symtab.End());
+
+			for (int r = 0; r < References.size(); r++)
+			{
+				for (int s = 0; pSym + s != pEnd; s++)
+				{
+					if (strcmp(References[r].ID.c_str(), s_strtab.Begin + pSym[s].st_name) == 0)
+					{
+						Elf32_Rela * p_rela = s_rela.Alloc<Elf32_Rela>();
+						p_rela->r_offset = References[r].i.Value;
+						p_rela->r_info = ELF32_R_INFO(s, References[r].i.t8);
+						p_rela->r_addend = 0;
+						break;
+					}
+				}
+			}
+		}
+
+		Elf32_Word Builder::AddString(char const * const pString)
+		{
+			// Return offset to existing string
+			for (char * pOld = s_strtab.Begin(); pOld != s_strtab.End();)
+			{
+				if (strcmp(pOld, pString) == 0)
+					return pOld - s_strtab.Begin();
+
+				pOld += strlen(pOld) + 1;
+			}
+
+			// Add new string
+			return (strcpy(s_strtab.Alloc(strlen(pString + 1)), pString) - s_strtab.Begin());
 		}
 	}
 }
