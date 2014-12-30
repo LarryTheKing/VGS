@@ -33,13 +33,13 @@ namespace VGS
 			Builder(char const * const);
 			~Builder();
 
-			bool	Build(char const * const);
+			bool	Build(char const * const, char const * const);
 			void	Reset(void);
 
 		private:
 			void	LoadLanguage(char const * const);
 			
-			bool	GenLitTree(char* const);
+			bool	GenLitTree(char const * const);
 			bool	GenLitNode(std::string const);
 
 			iNode	MatchNode(const std::string &);

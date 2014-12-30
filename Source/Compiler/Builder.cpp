@@ -31,13 +31,34 @@ namespace VGS
 			s_data.Reset();
 			s_rodata.Reset();
 			s_bss = 0;
-			s_strtab.Reset(); s_strtab.Alloc<char>();	// First byte is always '\0'
+			s_strtab.Reset(); *s_strtab.Alloc<char>() = 0;	// First byte is always '\0'
 			s_symtab.Reset();
 			s_rela.Reset();
 		}
 
-		bool Builder::Build(char const * const pFile)
+		bool Builder::Build(char const * const fin, char const * const fout)
 		{
+			std::cout << "\nBuilding : \"" << fin << "\"\n";
+
+			Reset();
+			if (!GenLitTree(fin))
+			{
+				std::cout << "ERROR : Failed to create litterature tree\n";
+				return false;
+			}
+
+			if (!GenProgTree())
+			{
+				std::cout << "ERROR : Failed to create program tree\n";
+				return false;
+			}
+
+			if (!GenELF(fout))
+			{
+				std::cout << "ERROR : Failed to create elf object\n";
+				return false;
+			}
+
 			return true;
 		}
 
@@ -62,7 +83,7 @@ namespace VGS
 			std::cout << ">> Found " << Language.size() << " terms\n";
 		}
 		
-		bool Builder::GenLitTree(char * const fileName)
+		bool Builder::GenLitTree(char const * const fileName)
 		{
 			std::ifstream ifile(fileName);
 			std::cout << "Opening file \"" << fileName << "\"\n";
@@ -228,28 +249,38 @@ namespace VGS
 				else if (mode == MODE_TEXT)
 				{
 					if (cWord[cWord.length() - 1] == ':')
+					{
 						if (!AddLabel(ProcNode(cWord.substr(0, cWord.length() - 1), s_text.Offset(), NODE_TYPE_OFFSET_T)))
 							return false;
-					else if (unsigned __int32 s = GenText(&Litterature[i]) != _UI32_MAX)
-						i += s;
+					}
 					else
-						return false;
+					{
+						unsigned __int32 const s = GenText(&Litterature[i]);
+						if (_UI32_MAX != s)
+							i += s;
+						else
+							return false;
+					}
 				}
-				else if (mode == MODE_DATA)
+				else if (mode == MODE_DATA || mode == MODE_RODATA)
 				{
-					if (unsigned __int32 s = GenData(&Litterature[i], &Litterature.back(), MODE_DATA) != _UI32_MAX)
+					unsigned __int32 const s = GenData(&Litterature[i], &Litterature.back(), mode);
+					if (_UI32_MAX != s)
 						i += s;
 					else
 						return false;
 				}
 				else if (mode == MODE_BSS)
 				{
-					if (unsigned __int32 s = GenBss(&Litterature[i], &Litterature.back()) != _UI32_MAX)
+					unsigned __int32 const s = GenBss(&Litterature[i], &Litterature.back());
+					if (_UI32_MAX != s)
 						i += s;
 					else
 						return false;
 				}
 			}
+
+			return true;
 		}
 
 		unsigned __int32 Builder::GenData(std::string const * pArgs, std::string const * const pLast, unsigned __int32 mode)
@@ -272,7 +303,7 @@ namespace VGS
 			#pragma region LABEL
 			if (pArgs[0][pArgs[0].length() - 1] == ':')
 			{
-				if (pArgs < pLast)		// Check for end of litearture
+				if (pArgs + 1 == pLast)		// Check for end of litearture
 					return _UI32_MAX;
 
 				//  Align to data sizes
@@ -502,7 +533,7 @@ namespace VGS
 			#pragma region LABEL
 			if (pArgs[0][pArgs[0].length() - 1] == ':')
 			{
-				if (pArgs < pLast)		// Check for end of litearture
+				if (pArgs + 1 == pLast)		// Check for end of litearture
 					return _UI32_MAX;
 
 				//  Align to data sizes
@@ -1190,7 +1221,7 @@ namespace VGS
 		Elf32_Word Builder::AddString(char const * const pString)
 		{
 			// Return offset to existing string
-			for (char * pOld = s_strtab.Begin(); pOld != s_strtab.End();)
+			for (char * pOld = s_strtab.Begin(); pOld != s_strtab.Cursor();)
 			{
 				if (strcmp(pOld, pString) == 0)
 					return pOld - s_strtab.Begin();
@@ -1199,7 +1230,7 @@ namespace VGS
 			}
 
 			// Add new string
-			return (strcpy(s_strtab.Alloc(strlen(pString + 1)), pString) - s_strtab.Begin());
+			return (strcpy(s_strtab.Alloc(strlen(pString) + 1), pString) - s_strtab.Begin());
 		}
 	}
 }

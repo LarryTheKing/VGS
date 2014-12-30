@@ -147,12 +147,12 @@ namespace VGS
 			case CPU_BRANCH_BGEZAL:
 				RA.u = PC.u + 4;
 			case CPU_BRANCH_BGEZ :
-				ADVANCE_PC((reg[OP.I.rs].u >= 0 ? OP.I.u << 2 : 4));
+				ADVANCE_PC((reg[OP.I.rs].u >= 0 ? OP.I.i << 2 : 4));
 				break;
 			case CPU_BRANCH_BLTZAL:
 				RA.u = PC.u + 4;
 			case CPU_BRANCH_BLTZ:
-				ADVANCE_PC((reg[OP.I.rs].u < 0 ? OP.I.u << 2 : 4));
+				ADVANCE_PC((reg[OP.I.rs].u < 0 ? OP.I.i << 2 : 4));
 				break;
 			}
 		}
@@ -171,16 +171,16 @@ namespace VGS
 			ADVANCE_PC(4);
 			break;
 		case CPU_BEQ :
-			ADVANCE_PC((reg[OP.I.rs].u == reg[OP.I.rt].u ? OP.I.u << 2 : 4));
+			ADVANCE_PC((reg[OP.I.rs].u == reg[OP.I.rt].u ? OP.I.i << 2 : 4));
 			break;
 		case CPU_BGTZ :
-			ADVANCE_PC((reg[OP.I.rs].u > 0 ? OP.I.u << 2 : 4));
+			ADVANCE_PC((reg[OP.I.rs].u > 0 ? OP.I.i << 2 : 4));
 			break;
 		case CPU_BLEZ:
-			ADVANCE_PC((reg[OP.I.rs].u <= 0 ? OP.I.u << 2 : 4));
+			ADVANCE_PC((reg[OP.I.rs].u <= 0 ? OP.I.i << 2 : 4));
 			break;
 		case CPU_BNE:
-			ADVANCE_PC((reg[OP.I.rs].u != reg[OP.I.rt].u ? OP.I.u << 2 : 4));
+			ADVANCE_PC((reg[OP.I.rs].u != reg[OP.I.rt].u ? OP.I.i << 2 : 4));
 			break;
 		case CPU_JAL:
 			RA.u = PC.u + 4;
