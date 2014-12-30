@@ -38,7 +38,7 @@ namespace VGS
 
 		bool Builder::Build(char const * const fin, char const * const fout)
 		{
-			std::cout << "\nBuilding : \"" << fin << "\"\n";
+			std::cout << "\nBuilding file : \"" << fin << "\"\n";
 
 			Reset();
 			if (!GenLitTree(fin))
@@ -90,7 +90,7 @@ namespace VGS
 		bool Builder::GenLitTree(char const * const fileName)
 		{
 			std::ifstream ifile(fileName);
-			std::cout << "Opening file \"" << fileName << "\"\n";
+			std::cout << ">> Opening file \"" << fileName << "\"\n";
 			if (!ifile.is_open())
 			{
 				std::cout << "ERROR : Failed to open file." << std::endl;
@@ -338,8 +338,12 @@ namespace VGS
 				#pragma region BYTE
 				pArgs++;
 
-				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
+				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
+
+					if (val == 0 && pArgs->ID[0] != '0')
+						break;
+
 					if (val < _I8_MIN || val > _UI8_MAX)
 					{
 						std::cout << "ERROR : Value " << val << " cannot be stored in a byte\n";
@@ -370,8 +374,12 @@ namespace VGS
 				if (!pStack->Align(2))
 					return _UI32_MAX;
 
-				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
+				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
+
+					if (val == 0 && pArgs->ID[0] != '0')
+						break;
+
 					if (val < _I16_MIN || val > _UI16_MAX)
 					{
 						std::cout << "ERROR : Value " << val << " cannot be stored in a half\n";
@@ -402,8 +410,12 @@ namespace VGS
 				if (!pStack->Align(4))
 					return _UI32_MAX;
 
-				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
+				while (long long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
+
+					if (val == 0 && pArgs->ID[0] != '0')
+						break;
+
 					if (val < _I32_MIN || val > _UI32_MAX)
 					{
 						std::cout << "ERROR : Value " << val << " cannot be stored in a word\n";
@@ -437,8 +449,11 @@ namespace VGS
 					pStack->Align(4);
 				}
 
-				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
+				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
+					if (val == 0 && pArgs->ID[0] != '0')
+						break;
+
 					if (val > 0)
 					{
 						pStack->Alloc(val);
@@ -1104,7 +1119,7 @@ namespace VGS
 		#pragma endregion
 
 			// Print progress
-			std::cout << ">> TOTAL\t: " << ELF.Offset() << " bytes\n";
+			std::cout << ">> TOTAL SIZE\t: " << ELF.Offset() << " bytes\n";
 
 			std::ofstream fout(pFile, std::ios::out | std::ios::binary | std::ios::trunc);
 			if (!fout.is_open())
