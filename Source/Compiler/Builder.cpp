@@ -992,12 +992,12 @@ namespace VGS
 				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
 				si_symtab = cursec++;
 
-				o_rodata_hdr->sh_name		= AddString(".symtab");
-				o_rodata_hdr->sh_type		= SHT_SYMTAB;
-				o_rodata_hdr->sh_offset		= o_symtab.offset;
-				o_rodata_hdr->sh_size		= s_symtab.Offset();
+				o_symtab_hdr->sh_name		= AddString(".symtab");
+				o_symtab_hdr->sh_type		= SHT_SYMTAB;
+				o_symtab_hdr->sh_offset		= o_symtab.offset;
+				o_symtab_hdr->sh_size		= s_symtab.Offset();
 				o_symtab_hdr->sh_addralign	= 0x04;
-				o_symtab_hdr->sh_entsize = sizeof(Elf32_Sym);
+				o_symtab_hdr->sh_entsize	= sizeof(Elf32_Sym);
 			}
 		#pragma endregion
 
@@ -1013,7 +1013,7 @@ namespace VGS
 				GenRela();	// Generates .rela data
 
 				// data
-				o_text = { ELF.Offset(), &ELF };
+				o_rela = { ELF.Offset(), &ELF };
 				memcpy(ELF.Alloc(s_rela.Offset()), s_rela.Begin(), s_rela.Offset());
 
 				// shdr
@@ -1026,7 +1026,7 @@ namespace VGS
 				o_rela_hdr->sh_flags = 0;
 				o_rela_hdr->sh_offset = o_rela.offset;
 				o_rela_hdr->sh_size = s_rela.Offset();
-				o_text_hdr->sh_addralign = 0x04;
+				o_rela_hdr->sh_addralign = 0x04;
 				o_rela_hdr->sh_link = si_symtab;
 				o_rela_hdr->sh_info = si_text;
 			}
@@ -1045,8 +1045,8 @@ namespace VGS
 				si_strtab = cursec++;
 
 				o_strtab_hdr->sh_name	= AddString(".strtab");
-				o_text_hdr->sh_type		= SHT_STRTAB;
-				o_text_hdr->sh_flags	= 0;
+				o_strtab_hdr->sh_type = SHT_STRTAB;
+				o_strtab_hdr->sh_flags = 0;
 
 				// data
 				o_strtab = { ELF.Offset(), &ELF };
@@ -1057,6 +1057,7 @@ namespace VGS
 				o_strtab_hdr->sh_size		= s_strtab.Offset();
 				o_strtab_hdr->sh_addralign	= 0x1;
 
+				// Update elf header
 				o_ehdr->e_shstrndx = si_strtab;
 			}
 		#pragma endregion
@@ -1067,7 +1068,9 @@ namespace VGS
 				o_shdr = { ELF.Offset(), &ELF };
 				memcpy(ELF.Alloc(s_hdr.Offset()), s_hdr.Begin(), s_hdr.Offset());
 
+				// Update elf header
 				o_ehdr->e_shoff = o_shdr.offset;
+				o_ehdr->e_shnum = cursec;
 			}
 		#pragma endregion
 
@@ -1091,7 +1094,7 @@ namespace VGS
 				{
 					if (Labels[l].ID == Globals[g].ID)
 					{
-						Globals[l].i.Value = l;		// Reference label
+						Globals[g].i.Value = l;		// Reference label
 						Labels[l].i.p1 = 1;			// Denotes thet this is a "global" label	
 						break;
 					}
@@ -1115,11 +1118,15 @@ namespace VGS
 					AddLabel(ProcNode(References[r].ID, _UI32_MAX, NODE_TYPE_NONE));
 			}
 
+			Elf32_Off o_globals = 0;
+
 			// Add Local and Undefined Labels
 			for (unsigned __int32 l = 0; l < Labels.size(); l++)
 			{
 				if (!Labels[l].i.p1)
 				{
+					o_globals++;
+
 					Elf32_Sym* pSym = s_symtab.Alloc<Elf32_Sym>();
 					pSym->st_name	= AddString(Labels[l].ID.c_str());
 					pSym->st_value	= Labels[l].i.Value;
@@ -1151,14 +1158,13 @@ namespace VGS
 					}
 				}
 			}
-
-			Elf32_Off o_globals = 0;
+	
 			if (Globals.size())
 			{
 				// Add Local and Undefined Labels
 				for (unsigned __int32 l = 0; l < Labels.size(); l++)
 				{
-					if (!Labels[l].i.p1)
+					if (Labels[l].i.p1)
 					{
 						Elf32_Sym* pSym = s_symtab.Alloc<Elf32_Sym>();
 						pSym->st_name = AddString(Labels[l].ID.c_str());
