@@ -47,9 +47,11 @@ namespace VGS
 				return false;
 			}
 
-			if (!GenProgTree())
+			unsigned __int32 retGPT = GenProgTree();
+			if (retGPT != _UI32_MAX)
 			{
 				std::cout << "ERROR : Failed to create program tree\n";
+				std::cout << ">> Line " << Litterature[retGPT].i.Value << " : \"" << Litterature[retGPT].ID << "\"\n\n";
 				return false;
 			}
 
@@ -58,6 +60,8 @@ namespace VGS
 				std::cout << "ERROR : Failed to create elf object\n";
 				return false;
 			}
+
+			std::cout << "\nBuild successful!\n";
 
 			return true;
 		}
@@ -102,7 +106,7 @@ namespace VGS
 			std::string	sLine;
 			while (std::getline(ifile, sLine))
 			{
-				if (!GenLitNode(sLine))
+				if (!GenLitNode(sLine, nLine))
 				{
 					std::cout << "ERROR : Unable to parse line " << nLine << std::endl;
 					return false;
@@ -116,7 +120,7 @@ namespace VGS
 			// TODO : Allow include files
 		}
 		
-		bool Builder::GenLitNode(std::string const sLine)
+		bool Builder::GenLitNode(std::string const sLine, const unsigned __int32 nLine)
 		{
 			if (!sLine[0])		// Skip empty lines
 				return true;
@@ -140,7 +144,7 @@ namespace VGS
 				{
 					if (i > index)
 					{
-						Litterature.push_back(sLine.substr(index, i - index));
+						Litterature.push_back(ProcNode(sLine.substr(index, i - index), nLine, NODE_TYPE_NONE));
 					}
 
 					index = i + 1;
@@ -222,7 +226,7 @@ namespace VGS
 #define MODE_RODATA	0x03
 #define MODE_BSS	0x04
 
-		bool Builder::GenProgTree(void)
+		unsigned __int32 Builder::GenProgTree(void)
 		{
 			std::cout << "\nGenerating program tree...\n";
 
@@ -232,7 +236,7 @@ namespace VGS
 
 			for (size_t i = 0; i < length; i++)
 			{
-				std::string const cWord = Litterature[i];
+				std::string const cWord = Litterature[i].ID;
 				if (cWord == ".text")
 					mode = MODE_TEXT;
 				else if (cWord == ".data")
@@ -243,15 +247,15 @@ namespace VGS
 					mode = MODE_RODATA;
 				else if (cWord == ".global")
 				{
-					if (!AddGlobal(Litterature[++i]))
-						return false;
+					if (!AddGlobal(Litterature[++i].ID))
+						return i;
 				}
 				else if (mode == MODE_TEXT)
 				{
 					if (cWord[cWord.length() - 1] == ':')
 					{
 						if (!AddLabel(ProcNode(cWord.substr(0, cWord.length() - 1), s_text.Offset(), NODE_TYPE_OFFSET_T)))
-							return false;
+							return i;
 					}
 					else
 					{
@@ -259,7 +263,7 @@ namespace VGS
 						if (_UI32_MAX != s)
 							i += s;
 						else
-							return false;
+							return i;
 					}
 				}
 				else if (mode == MODE_DATA || mode == MODE_RODATA)
@@ -268,7 +272,7 @@ namespace VGS
 					if (_UI32_MAX != s)
 						i += s;
 					else
-						return false;
+						return i;
 				}
 				else if (mode == MODE_BSS)
 				{
@@ -276,14 +280,16 @@ namespace VGS
 					if (_UI32_MAX != s)
 						i += s;
 					else
-						return false;
+						return i;
 				}
 			}
 
-			return true;
+			std::cout << ">> Program tree built\n>> Created " << Labels.size() << " labels (" << Globals.size() << " global)\n>> Created " << References.size() << " references\n";
+
+			return _UI32_MAX;
 		}
 
-		unsigned __int32 Builder::GenData(std::string const * pArgs, std::string const * const pLast, unsigned __int32 mode)
+		unsigned __int32 Builder::GenData(ProcNode const * pArgs, ProcNode const * const pLast, unsigned __int32 mode)
 		{
 			DynamicStackAlloc * pStack = nullptr;
 
@@ -301,25 +307,25 @@ namespace VGS
 
 			// Is there a label?
 			#pragma region LABEL
-			if (pArgs[0][pArgs[0].length() - 1] == ':')
+			if (pArgs[0].ID[pArgs[0].ID.length() - 1] == ':')
 			{
 				if (pArgs + 1 == pLast)		// Check for end of litearture
 					return _UI32_MAX;
 
 				//  Align to data sizes
-				if (pArgs[1] == ".half")
+				if (pArgs[1].ID == ".half")
 				{
 					if (!pStack->Align(2))
 						return _UI32_MAX;
 				}
-				else if (pArgs[1] == ".word" || pArgs[1] == ".space")
+				else if (pArgs[1].ID == ".word" || pArgs[1].ID == ".space")
 				{
 					if (!pStack->Align(4))
 						return _UI32_MAX;
 				}
 
 				// Add label to list
-				if (!AddLabel(ProcNode(pArgs[0].substr(0, pArgs[0].length() - 1), pStack->Offset(), (mode == MODE_DATA ? NODE_TYPE_OFFSET_D : NODE_TYPE_OFFSET_R))))
+				if (!AddLabel(ProcNode(pArgs[0].ID.substr(0, pArgs[0].ID.length() - 1), pStack->Offset(), (mode == MODE_DATA ? NODE_TYPE_OFFSET_D : NODE_TYPE_OFFSET_R))))
 					return _UI32_MAX;
 				
 				pArgs++;
@@ -327,12 +333,12 @@ namespace VGS
 			}
 			#pragma endregion
 
-			if (*pArgs == ".byte")
+			if (pArgs->ID == ".byte")
 			{
 				#pragma region BYTE
 				pArgs++;
 
-				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
+				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
 				{
 					if (val < _I8_MIN || val > _UI8_MAX)
 					{
@@ -356,7 +362,7 @@ namespace VGS
 				return nArgs;
 				#pragma endregion
 			}
-			else if (*pArgs == ".half")
+			else if (pArgs->ID == ".half")
 			{
 				#pragma region HALF
 				pArgs++;
@@ -364,7 +370,7 @@ namespace VGS
 				if (!pStack->Align(2))
 					return _UI32_MAX;
 
-				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
+				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
 				{
 					if (val < _I16_MIN || val > _UI16_MAX)
 					{
@@ -388,7 +394,7 @@ namespace VGS
 				return nArgs;
 				#pragma endregion
 			}
-			else if (pArgs[0] == ".word")
+			else if (pArgs->ID == ".word")
 			{
 				#pragma region WORD
 				pArgs++;
@@ -396,7 +402,7 @@ namespace VGS
 				if (!pStack->Align(4))
 					return _UI32_MAX;
 
-				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
+				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
 				{
 					if (val < _I32_MIN || val > _UI32_MAX)
 					{
@@ -420,7 +426,7 @@ namespace VGS
 				return nArgs;
 				#pragma endregion
 			}
-			else if (pArgs[0] == ".space")
+			else if (pArgs->ID == ".space")
 			{
 				#pragma region SPACE
 				pArgs++;
@@ -431,7 +437,7 @@ namespace VGS
 					pStack->Align(4);
 				}
 
-				while (long val = strtol(pArgs->data(), nullptr, 0) && (val != 0 || pArgs[0][0] == '0'))
+				while (long val = strtol(pArgs->ID.data(), nullptr, 0) && (val != 0 || pArgs->ID[0] == '0'))
 				{
 					if (val > 0)
 					{
@@ -454,22 +460,22 @@ namespace VGS
 				return nArgs;
 				#pragma endregion
 			}
-			else if (pArgs[0] == ".ascii" || pArgs[0] == ".asciiz")
+			else if (pArgs->ID == ".ascii" || pArgs->ID == ".asciiz")
 			{
 				#pragma region ASCII(Z)
-				bool is_ascii = (*pArgs == ".ascii");
+				bool is_ascii = (pArgs->ID == ".ascii");
 
 				pArgs++;
 
-				if ((*pArgs)[0] != '\"' || pArgs->length() < 2 || (*pArgs)[pArgs->length() - 1] != '\"')
+				if (pArgs->ID[0] != '\"' || pArgs->ID.length() < 2 || pArgs->ID[pArgs->ID.length() - 1] != '\"')
 				{
-					std::cout << "ERROR : String " << *pArgs << " is not valid\n";
+					std::cout << "ERROR : String " << pArgs->ID << " is not valid\n";
 					return _UI32_MAX;
 				}
 
 				nArgs++;
 
-				std::string const val = pArgs->substr(1, pArgs->length() - 2);
+				std::string const val = pArgs->ID.substr(1, pArgs->ID.length() - 2);
 				char * buffer = reinterpret_cast<char*>(malloc(val.length() + 1));
 				memset(buffer, 0x00, val.length() + 1);
 
@@ -522,7 +528,7 @@ namespace VGS
 			return _UI32_MAX;
 		}
 	
-		unsigned __int32 Builder::GenBss(std::string const *  pArgs, std::string const * const pLast)
+		unsigned __int32 Builder::GenBss(ProcNode const *  pArgs, ProcNode const * const pLast)
 		{
 			int nArgs = 0;
 
@@ -531,24 +537,24 @@ namespace VGS
 
 			// Is there a label?
 			#pragma region LABEL
-			if (pArgs[0][pArgs[0].length() - 1] == ':')
+			if (pArgs->ID[pArgs->ID.length() - 1] == ':')
 			{
 				if (pArgs + 1 == pLast)		// Check for end of litearture
 					return _UI32_MAX;
 
 				//  Align to data sizes
-				if (pArgs[1] == ".half")
+				if (pArgs[1].ID == ".half")
 				{
 					s_bss += s_bss & 0x01;
 				}
-				else if (pArgs[1] == ".word" || pArgs[1] == ".space")
+				else if (pArgs[1].ID == ".word" || pArgs[1].ID == ".space")
 				{
 					if (s_bss & 0x3)	// Align to word
 						s_bss += 4 - (s_bss & 0x3);
 				}
 
 				// Add label to list
-				if (!AddLabel(ProcNode(pArgs[0].substr(0, pArgs[0].length() - 1), s_bss, NODE_TYPE_OFFSET_B)))
+				if (!AddLabel(ProcNode(pArgs->ID.substr(0, pArgs->ID.length() - 1), s_bss, NODE_TYPE_OFFSET_B)))
 					return _UI32_MAX;
 
 				pArgs++;
@@ -556,21 +562,21 @@ namespace VGS
 			}
 			#pragma endregion
 
-			if (pArgs[0] == ".byte")
+			if (pArgs->ID == ".byte")
 			{
 			#pragma region BYTE
 				s_bss++;	// "Alloc" 1 byte
 				return nArgs;
 			#pragma endregion
 			}
-			else if (pArgs[0] == ".half")
+			else if (pArgs->ID == ".half")
 			{
 			#pragma region HALF
 				s_bss += 2 + (s_bss & 0x01);
 				return nArgs;
 			#pragma endregion
 			}
-			else if (pArgs[0] == ".word")
+			else if (pArgs->ID == ".word")
 			{
 			#pragma region WORD
 
@@ -582,10 +588,10 @@ namespace VGS
 				return nArgs;
 			#pragma endregion
 			}
-			else if (pArgs[0] == ".space")
+			else if (pArgs->ID == ".space")
 			{
 			#pragma region SPACE
-				long val = strtol(pArgs[1].data(), nullptr, 0);
+				long val = strtol(pArgs[1].ID.data(), nullptr, 0);
 				if (val > 0)
 				{
 					if (s_bss & 0x3)	// Align to word
@@ -605,9 +611,9 @@ namespace VGS
 			return _UI32_MAX;
 		}
 
-		unsigned __int32 Builder::GenText(std::string const * pArgs)
+		unsigned __int32 Builder::GenText(ProcNode const * pArgs)
 		{
-			iNode baseNode = MatchNode(pArgs[0]);
+			iNode baseNode = MatchNode(pArgs->ID);
 
 			if (baseNode.t8 == NODE_TYPE_OP_S)
 				return GenTextOpS(pArgs + 1, baseNode.Value);
@@ -630,64 +636,64 @@ namespace VGS
 				switch (t)
 				{
 				case NODE_TYPE_RS:
-				{	iNode p = MatchNode(pArgs[nArgs]);
+				{	iNode p = MatchNode(pArgs[nArgs].ID);
 				if (p.t8 == NODE_TYPE_REGISTER)
 					op->I.rs = p.Value;
 				}	break;
 				case NODE_TYPE_RT:
-				{	iNode p = MatchNode(pArgs[nArgs]);
+				{	iNode p = MatchNode(pArgs[nArgs].ID);
 				if (p.t8 == NODE_TYPE_REGISTER)
 					op->I.rt = p.Value;
 				}	break;
 				case NODE_TYPE_RD:
-				{	iNode p = MatchNode(pArgs[nArgs]);
+				{	iNode p = MatchNode(pArgs[nArgs].ID);
 				if (p.t8 == NODE_TYPE_REGISTER)
 					op->R.rd = p.Value;
 				}	break;
 				case NODE_TYPE_IMMEDIATE:
-					op->I.i = strtol(pArgs[nArgs].data(), nullptr, 0);
+					op->I.i = strtol(pArgs[nArgs].ID.data(), nullptr, 0);
 
 					// Was this maybe supposed to be a label?
-					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
+					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
 					{
-						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_16));
+						References.push_back(ProcNode(pArgs[nArgs].ID, reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_16));
 					}
 					break;
 				case NODE_TYPE_SHAMT:
-					op->R.shamt = strtol(pArgs[nArgs].data(), nullptr, 0);
+					op->R.shamt = strtol(pArgs[nArgs].ID.data(), nullptr, 0);
 					break;
 				case NODE_TYPE_TARGET:
-				{	if (!(op->J.target = (strtol(pArgs[nArgs].data(), nullptr, 0) >> 2)))
+				{	if (!(op->J.target = (strtol(pArgs[nArgs].ID.data(), nullptr, 0) >> 2)))
 				{
-					iNode p = MatchNode(pArgs[nArgs]);
+					iNode p = MatchNode(pArgs[nArgs].ID);
 					if (p.Type == NODE_TYPE_ADDRESS && p.Value)
 						op->J.target = p.Value >> 2;
 					else
-						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_26));
+						References.push_back(ProcNode(pArgs[nArgs].ID, reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_26));
 				}
 				}	break;
 				case NODE_TYPE_OFFSET:
 				{
 
-					size_t paren = pArgs[nArgs].find('(');
+					size_t paren = pArgs[nArgs].ID.find('(');
 
 					// Set offset
-					long offset = strtol(pArgs[nArgs].substr(0, paren).data(), nullptr, 0);
+					long offset = strtol(pArgs[nArgs].ID.substr(0, paren).data(), nullptr, 0);
 					if (offset < 0)
 						op->I.i = offset;
 					else
 						op->I.u = offset;
 
 					// Was this maybe supposed to be zero
-					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
+					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
 					{
-						std::cout << "ERROR : Offset must be a number - " << pArgs[nArgs] << std::endl;
+						std::cout << "ERROR : Offset must be a number - " << pArgs[nArgs].ID << std::endl;
 						return _UI32_MAX;
 					}
 
 					if (paren != std::string::npos)
 					{
-						std::string regArg = pArgs[nArgs].substr(paren + 1, std::string::npos);
+						std::string regArg = pArgs[nArgs].ID.substr(paren + 1, std::string::npos);
 						regArg.pop_back();	// Should remove ')'
 						iNode regNode = MatchNode(regArg);
 						if (regNode.t8 != NODE_TYPE_REGISTER)
@@ -699,12 +705,12 @@ namespace VGS
 				}	break;
 				case NODE_TYPE_RTARGET:
 				{
-					op->I.i = strtol(pArgs[nArgs].data(), nullptr, 0);
+					op->I.i = strtol(pArgs[nArgs].ID.data(), nullptr, 0);
 
 					// Was this maybe supposed to be a label?
-					if (op->I.i == 0 && pArgs[nArgs][0] != '0')
+					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
 					{
-						References.push_back(ProcNode(pArgs[nArgs], reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_PC16));
+						References.push_back(ProcNode(pArgs[nArgs].ID, reinterpret_cast<char*>(op)-s_text.Begin(), R_MIPS_PC16));
 					}
 				}	break;
 
@@ -714,18 +720,18 @@ namespace VGS
 			return nArgs;
 		}
 
-		unsigned __int32 Builder::GenTextOpS(std::string const * const pArgs, unsigned __int32 op)
+		unsigned __int32 Builder::GenTextOpS(ProcNode const * const pArgs, unsigned __int32 op)
 		{
 			switch (op)
 			{
 			case(0x01) :	// la
 			#pragma region LA
 			{
-				iNode p1 = MatchNode(pArgs[0]);
+				iNode p1 = MatchNode(pArgs[0].ID);
 				if (p1.t8 != NODE_TYPE_REGISTER)
 					return _UI32_MAX;
 
-				long val = strtol(pArgs[1].data(), nullptr, 0);
+				long val = strtol(pArgs[1].ID.data(), nullptr, 0);
 
 				CPU_OP * ops = s_text.Alloc<CPU_OP>(2);
 				ops[0].WORD = CPU_LUI;
@@ -739,10 +745,10 @@ namespace VGS
 				ops[1].I.u = val & 0xFFFF;
 
 				// Was this maybe supposed to be a label?
-				if (val == 0 && pArgs[1][0] != '0')
+				if (val == 0 && pArgs[1].ID[0] != '0')
 				{
-					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops)-s_text.Begin(), R_MIPS_HI16));
-					References.push_back(ProcNode(pArgs[1], reinterpret_cast<char*>(ops + 1) - s_text.Begin(), R_MIPS_LO16));
+					References.push_back(ProcNode(pArgs[1].ID, reinterpret_cast<char*>(ops)-s_text.Begin(), R_MIPS_HI16));
+					References.push_back(ProcNode(pArgs[1].ID, reinterpret_cast<char*>(ops + 1) - s_text.Begin(), R_MIPS_LO16));
 				}
 
 				return 2;
@@ -751,11 +757,11 @@ namespace VGS
 			case(0x02) :	// li
 			#pragma region LI
 			{
-				iNode p1 = MatchNode(pArgs[0]);
+				iNode p1 = MatchNode(pArgs[0].ID);
 				if (p1.t8 != NODE_TYPE_REGISTER)
 					return _UI32_MAX;
 
-				long val = strtol(pArgs[1].data(), nullptr, 0);
+				long val = strtol(pArgs[1].ID.data(), nullptr, 0);
 
 				if (val >= _I16_MIN || val <= _UI16_MAX)
 				{
@@ -788,7 +794,7 @@ namespace VGS
 			case (0x03) :	// push
 			#pragma region PUSH
 			{
-				iNode p1 = MatchNode(pArgs[0]);
+				iNode p1 = MatchNode(pArgs[0].ID);
 				if (p1.t8 != NODE_TYPE_REGISTER)
 					return _UI32_MAX;
 
@@ -816,7 +822,7 @@ namespace VGS
 			case (0x04) :	// pop
 			#pragma region POP
 			{
-				iNode p1 = MatchNode(pArgs[0]);
+				iNode p1 = MatchNode(pArgs[0].ID);
 				if (p1.t8 != NODE_TYPE_REGISTER)
 					return _UI32_MAX;
 
@@ -846,6 +852,9 @@ namespace VGS
 
 		bool Builder::GenELF(char const * const pFile)
 		{
+
+			std::cout << "\nGenerating ELF object\n";
+
 			DynamicStackAlloc ELF(512);
 			DynamicStackAlloc s_hdr(128);	// Temp storage for section headers
 			
@@ -893,6 +902,9 @@ namespace VGS
 				o_text_hdr->sh_offset		= o_text.offset;
 				o_text_hdr->sh_size			= s_text.Offset();
 				o_text_hdr->sh_addralign	= 0x04;
+
+				// Print progress
+				std::cout << ">> .text\t: " << o_text_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -919,7 +931,10 @@ namespace VGS
 				o_data_hdr->sh_flags		= SHF_WRITE | SHF_ALLOC;
 				o_data_hdr->sh_offset		= o_data.offset;
 				o_data_hdr->sh_size			= s_data.Offset();
-				o_data_hdr->sh_addralign	= 0x04;				
+				o_data_hdr->sh_addralign	= 0x04;	
+
+				// Print progress
+				std::cout << ">> .data\t: " << o_data_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -947,6 +962,9 @@ namespace VGS
 				o_rodata_hdr->sh_flags		= SHF_ALLOC;
 				o_rodata_hdr->sh_size		= s_rodata.Offset();
 				o_rodata_hdr->sh_addralign	= 0x04;
+
+				// Print progress
+				std::cout << ">> .rodata\t: " << o_rodata_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -969,6 +987,8 @@ namespace VGS
 				o_bss_hdr->sh_size			= s_bss;
 				o_bss_hdr->sh_addralign		= 0x04;
 
+				// Print progress
+				std::cout << ">> .bss\t\t: " << o_bss_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -998,6 +1018,9 @@ namespace VGS
 				o_symtab_hdr->sh_size		= s_symtab.Offset();
 				o_symtab_hdr->sh_addralign	= 0x04;
 				o_symtab_hdr->sh_entsize	= sizeof(Elf32_Sym);
+
+				// Print progress
+				std::cout << ">> .symtab\t: " << o_symtab_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -1029,6 +1052,9 @@ namespace VGS
 				o_rela_hdr->sh_addralign = 0x04;
 				o_rela_hdr->sh_link = si_symtab;
 				o_rela_hdr->sh_info = si_text;
+
+				// Print progress
+				std::cout << ">> .rela.text\t: " << o_rela_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -1059,6 +1085,9 @@ namespace VGS
 
 				// Update elf header
 				o_ehdr->e_shstrndx = si_strtab;
+
+				// Print progress
+				std::cout << ">> .strtab\t: " << o_strtab_hdr->sh_size << " bytes\n";
 			}
 		#pragma endregion
 
@@ -1074,6 +1103,9 @@ namespace VGS
 			}
 		#pragma endregion
 
+			// Print progress
+			std::cout << ">> TOTAL\t: " << ELF.Offset() << " bytes\n";
+
 			std::ofstream fout(pFile, std::ios::out | std::ios::binary | std::ios::trunc);
 			if (!fout.is_open())
 			{
@@ -1083,6 +1115,11 @@ namespace VGS
 
 			fout.write(ELF.Begin(), ELF.Offset());
 			fout.close();
+
+			// Print progress
+			std::cout << ">> Saved ELF object as \"" << pFile << "\"\n";
+
+			return true;
 		}
 
 		Elf32_Off Builder::GenSymtab(Elf32_Half const si_text, Elf32_Half const si_data, Elf32_Half const si_rodata, Elf32_Half const si_bss)

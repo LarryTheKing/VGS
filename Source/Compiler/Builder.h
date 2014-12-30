@@ -14,7 +14,7 @@ namespace VGS
 		{
 		private:
 			std::vector<ProcNode>		Language;
-			std::vector<std::string>	Litterature;
+			std::vector<ProcNode>		Litterature;
 
 			std::vector<ProcNode>		Labels;
 			std::vector<ProcNode>		References;
@@ -40,17 +40,17 @@ namespace VGS
 			void	LoadLanguage(char const * const);
 			
 			bool	GenLitTree(char const * const);
-			bool	GenLitNode(std::string const);
+			bool	GenLitNode(std::string const, const unsigned __int32);
 
 			iNode	MatchNode(const std::string &);
 			bool	AddGlobal(const std::string);
 			bool	AddLabel(ProcNode const);
 
-			bool	GenProgTree(void);
-			unsigned __int32	GenText		(std::string const * );
-			unsigned __int32	GenTextOpS	(std::string const * const, unsigned __int32);
-			unsigned __int32	GenData		(std::string const *, std::string const * const, unsigned __int32);
-			unsigned __int32	GenBss		(std::string const *, std::string const * const);
+			unsigned __int32	GenProgTree(void);
+			unsigned __int32	GenText		(ProcNode const * );
+			unsigned __int32	GenTextOpS	(ProcNode const * const, unsigned __int32);
+			unsigned __int32	GenData		(ProcNode const *, ProcNode const * const, unsigned __int32);
+			unsigned __int32	GenBss		(ProcNode const *, ProcNode const * const);
 
 			Elf32_Word AddString(char const * const);
 
