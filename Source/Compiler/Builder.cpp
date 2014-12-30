@@ -244,7 +244,7 @@ namespace VGS
 				else if (cWord == ".rodata")
 					mode = MODE_RODATA;
 				else if (cWord == ".bss")
-					mode = MODE_RODATA;
+					mode = MODE_BSS;
 				else if (cWord == ".global")
 				{
 					if (!AddGlobal(Litterature[++i].ID))
@@ -467,7 +467,7 @@ namespace VGS
 					}
 					else
 					{
-						std::cout << "ERROR : Cannot create space of size " << val << " bytes\n";
+						std::cout << "ERROR : Cannot create space of size " << val << " \tbytes\n";
 						return _UI32_MAX;
 					}
 				}
@@ -617,7 +617,7 @@ namespace VGS
 				}
 				else
 				{
-					std::cout << "ERROR : Cannot create space of size " << val << " bytes\n";
+					std::cout << "ERROR : Cannot create space of size " << val << " \tbytes\n";
 					return _UI32_MAX;
 				}
 			#pragma endregion
@@ -919,7 +919,7 @@ namespace VGS
 				o_text_hdr->sh_addralign	= 0x04;
 
 				// Print progress
-				std::cout << ">> .text\t: " << o_text_hdr->sh_size << " bytes\n";
+				std::cout << ">> .text\t: " << o_text_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -949,7 +949,7 @@ namespace VGS
 				o_data_hdr->sh_addralign	= 0x04;	
 
 				// Print progress
-				std::cout << ">> .data\t: " << o_data_hdr->sh_size << " bytes\n";
+				std::cout << ">> .data\t: " << o_data_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -979,7 +979,7 @@ namespace VGS
 				o_rodata_hdr->sh_addralign	= 0x04;
 
 				// Print progress
-				std::cout << ">> .rodata\t: " << o_rodata_hdr->sh_size << " bytes\n";
+				std::cout << ">> .rodata\t: " << o_rodata_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -1003,7 +1003,7 @@ namespace VGS
 				o_bss_hdr->sh_addralign		= 0x04;
 
 				// Print progress
-				std::cout << ">> .bss\t\t: " << o_bss_hdr->sh_size << " bytes\n";
+				std::cout << ">> .bss\t\t: " << o_bss_hdr->sh_size << " \tbytes*\n";
 			}
 		#pragma endregion
 
@@ -1035,7 +1035,7 @@ namespace VGS
 				o_symtab_hdr->sh_entsize	= sizeof(Elf32_Sym);
 
 				// Print progress
-				std::cout << ">> .symtab\t: " << o_symtab_hdr->sh_size << " bytes\n";
+				std::cout << ">> .symtab\t: " << o_symtab_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -1069,7 +1069,7 @@ namespace VGS
 				o_rela_hdr->sh_info = si_text;
 
 				// Print progress
-				std::cout << ">> .rela.text\t: " << o_rela_hdr->sh_size << " bytes\n";
+				std::cout << ">> .rela.text\t: " << o_rela_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -1102,7 +1102,7 @@ namespace VGS
 				o_ehdr->e_shstrndx = si_strtab;
 
 				// Print progress
-				std::cout << ">> .strtab\t: " << o_strtab_hdr->sh_size << " bytes\n";
+				std::cout << ">> .strtab\t: " << o_strtab_hdr->sh_size << " \tbytes\n";
 			}
 		#pragma endregion
 
@@ -1115,11 +1115,13 @@ namespace VGS
 				// Update elf header
 				o_ehdr->e_shoff = o_shdr.offset;
 				o_ehdr->e_shnum = cursec;
+
+				std::cout << ">> sec headers\t: " << s_hdr.Offset() << " \tbytes\n";
 			}
 		#pragma endregion
 
 			// Print progress
-			std::cout << ">> TOTAL SIZE\t: " << ELF.Offset() << " bytes\n";
+			std::cout << ">> TOTAL SIZE\t: " << ELF.Offset() << " \tbytes\n";
 
 			std::ofstream fout(pFile, std::ios::out | std::ios::binary | std::ios::trunc);
 			if (!fout.is_open())
