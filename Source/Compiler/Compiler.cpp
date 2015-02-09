@@ -25,7 +25,7 @@ namespace VGS
 
 		void Compiler::Reset(void)
 		{
-			Litterature.clear();
+			Vocab.clear();
 		}
 
 		char * Compiler::Compile(char * const fileName, size_t & size)
@@ -35,7 +35,7 @@ namespace VGS
 			Reset();
 			if (!GenLitTree(fileName))
 			{
-				std::cout << "ERROR : Failed to create litterature tree\n";
+				std::cout << "ERROR : Failed to create Vocab tree\n";
 				return nullptr;
 			}
 
@@ -106,7 +106,7 @@ namespace VGS
 				{
 					if (i > index)
 					{
-						Litterature.push_back(sLine.substr(index, i - index));
+						Vocab.push_back(sLine.substr(index, i - index));
 					}
 
 					index = i + 1;
@@ -131,9 +131,9 @@ return true;
 				return false;
 			}
 
-			// Read each line from file and generate litterature tree
+			// Read each line from file and generate Vocab tree
 
-			std::cout << "\nGenerating litterature tree...\n";
+			std::cout << "\nGenerating Vocab tree...\n";
 
 			unsigned __int32 nLine = 1;
 
@@ -148,7 +148,7 @@ return true;
 				nLine++;
 			}
 
-			std::cout << ">> Found " << Litterature.size() << " words\n";
+			std::cout << ">> Found " << Vocab.size() << " words\n";
 
 			return true;
 			// TODO : Allow include files
@@ -525,10 +525,10 @@ return true;
 
 			unsigned __int32 mode = MODE_DATA;
 
-			const size_t length = Litterature.size();
+			const size_t length = Vocab.size();
 			for (size_t i = 0; i < length; i++)
 			{
-				std::string const cWord = Litterature[i];
+				std::string const cWord = Vocab[i];
 				if (cWord == ".text")
 					mode = MODE_TEXT;
 				else if (cWord == ".data")
@@ -542,14 +542,14 @@ return true;
 				}
 				else if (mode == MODE_DATA)
 				{
-					if (int s = GenData(&Litterature[i]) != -1)
+					if (int s = GenData(&Vocab[i]) != -1)
 						i += s;
 					else
 						return false;
 				}
 				else if (mode == MODE_TEXT)
 				{
-					int s = GenOp(&Litterature[i]);
+					int s = GenOp(&Vocab[i]);
 					if ( s != -1)
 						i += s;
 					else

@@ -14,13 +14,13 @@ namespace VGS
 		{
 		private:
 			std::vector<ProcNode>		Language;
-			std::vector<ProcNode>		Litterature;
+			std::vector<ProcNode>		Vocab;
 
 			std::vector<ProcNode>		Labels;
 			std::vector<ProcNode>		References;
 			std::vector<ProcNode>	Globals;
 
-			DynamicStackAlloc	s_text;		// .text data
+			DynamicStackAlloc	s_text;		// .text
 			DynamicStackAlloc	s_data;		// .data
 			DynamicStackAlloc	s_rodata;	// .rodata
 			unsigned __int32	s_bss;		// .bss

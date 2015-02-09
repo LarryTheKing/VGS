@@ -12,7 +12,7 @@ namespace VGS
 		{
 		private:
 			std::vector<ProcNode>		Language;
-			std::vector<std::string>	Litterature;
+			std::vector<std::string>	Vocab;
 			std::vector<ProcNode>		Links;
 			std::vector<ProcNode>		Keys;
 

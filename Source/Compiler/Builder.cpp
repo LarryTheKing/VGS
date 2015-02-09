@@ -26,7 +26,7 @@ namespace VGS
 
 		void Builder::Reset(void)
 		{
-			Litterature.clear();
+			Vocab.clear();
 			s_text.Reset();
 			s_data.Reset();
 			s_rodata.Reset();
@@ -43,7 +43,7 @@ namespace VGS
 			Reset();
 			if (!GenLitTree(fin))
 			{
-				std::cout << "ERROR : Failed to create litterature tree\n";
+				std::cout << "ERROR : Failed to create Vocab tree\n";
 				return false;
 			}
 
@@ -51,7 +51,7 @@ namespace VGS
 			if (retGPT != _UI32_MAX)
 			{
 				std::cout << "ERROR : Failed to create program tree\n";
-				std::cout << ">> Line " << Litterature[retGPT].i.Value << " : \"" << Litterature[retGPT].ID << "\"\n\n";
+				std::cout << ">> Line " << Vocab[retGPT].i.Value << " : \"" << Vocab[retGPT].ID << "\"\n\n";
 				return false;
 			}
 
@@ -97,9 +97,9 @@ namespace VGS
 				return false;
 			}
 
-			// Read each line from file and generate litterature tree
+			// Read each line from file and generate Vocab tree
 
-			std::cout << "\nGenerating litterature tree...\n";
+			std::cout << "\nGenerating Vocab tree...\n";
 
 			unsigned __int32 nLine = 1;
 
@@ -114,7 +114,7 @@ namespace VGS
 				nLine++;
 			}
 
-			std::cout << ">> Found " << Litterature.size() << " words\n";
+			std::cout << ">> Found " << Vocab.size() << " words\n";
 
 			return true;
 			// TODO : Allow include files
@@ -144,7 +144,7 @@ namespace VGS
 				{
 					if (i > index)
 					{
-						Litterature.push_back(ProcNode(sLine.substr(index, i - index), nLine, NODE_TYPE_NONE));
+						Vocab.push_back(ProcNode(sLine.substr(index, i - index), nLine, NODE_TYPE_NONE));
 					}
 
 					index = i + 1;
@@ -232,11 +232,11 @@ namespace VGS
 
 			unsigned __int32 mode = MODE_TEXT;
 
-			const size_t length = Litterature.size();
+			const size_t length = Vocab.size();
 
 			for (size_t i = 0; i < length; i++)
 			{
-				std::string const cWord = Litterature[i].ID;
+				std::string const cWord = Vocab[i].ID;
 				if (cWord == ".text")
 					mode = MODE_TEXT;
 				else if (cWord == ".data")
@@ -247,7 +247,7 @@ namespace VGS
 					mode = MODE_BSS;
 				else if (cWord == ".global")
 				{
-					if (!AddGlobal(Litterature[++i].ID))
+					if (!AddGlobal(Vocab[++i].ID))
 						return i;
 				}
 				else if (mode == MODE_TEXT)
@@ -259,7 +259,7 @@ namespace VGS
 					}
 					else
 					{
-						unsigned __int32 const s = GenText(&Litterature[i]);
+						unsigned __int32 const s = GenText(&Vocab[i]);
 						if (_UI32_MAX != s)
 							i += s;
 						else
@@ -268,7 +268,7 @@ namespace VGS
 				}
 				else if (mode == MODE_DATA || mode == MODE_RODATA)
 				{
-					unsigned __int32 const s = GenData(&Litterature[i], &Litterature.back(), mode);
+					unsigned __int32 const s = GenData(&Vocab[i], &Vocab.back(), mode);
 					if (_UI32_MAX != s)
 						i += s;
 					else
@@ -276,7 +276,7 @@ namespace VGS
 				}
 				else if (mode == MODE_BSS)
 				{
-					unsigned __int32 const s = GenBss(&Litterature[i], &Litterature.back());
+					unsigned __int32 const s = GenBss(&Vocab[i], &Vocab.back());
 					if (_UI32_MAX != s)
 						i += s;
 					else
