@@ -52,7 +52,7 @@ namespace VGS
 
 	
 	// Get a value from some memory bank at an offset
-	template <typename T = __int32> T* System::GetPtr(unsigned __int32 const offset)
+	template <typename T> T* System::GetPtr(unsigned __int32 const offset)
 	{
 		switch (offset & MS_MASK)
 		{
@@ -78,7 +78,7 @@ namespace VGS
 	}
 
 	// Get a value from some memory bank at an offset
-	template <typename T = __int32> T System::GetMem(unsigned __int32 const offset)
+	template <typename T> T System::GetMem(unsigned __int32 const offset)
 	{
 		switch (offset & MS_MASK)
 		{
@@ -104,7 +104,7 @@ namespace VGS
 	}
 
 	// Store a 32bit value in some memory bank at an offset
-	template <typename T = __int32> void System::SetMem(unsigned __int32 const offset, T const value)
+	template <typename T> void System::SetMem(unsigned __int32 const offset, T const value)
 	{
 		switch (offset & MS_MASK)
 		{

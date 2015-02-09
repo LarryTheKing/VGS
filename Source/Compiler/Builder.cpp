@@ -125,7 +125,7 @@ namespace VGS
 			if (!sLine[0])		// Skip empty lines
 				return true;
 
-			int		index = 0;
+			size_t		index = 0;
 			bool	bQuote = false;
 
 			for (size_t i = 0; i < sLine.size() + 1; i++)	// Parse line
@@ -191,7 +191,7 @@ namespace VGS
 			if (!ValidateName(n.ID))
 				return false;
 
-			for (int i = 0; i < Labels.size(); i++)
+			for (size_t i = 0; i < Labels.size(); i++)
 			{
 				if (n.ID == Labels[i].ID)
 				{
@@ -338,7 +338,7 @@ namespace VGS
 				#pragma region BYTE
 				pArgs++;
 
-				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
+				while (long long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
 
 					if (val == 0 && pArgs->ID[0] != '0')
@@ -351,9 +351,9 @@ namespace VGS
 					}
 
 					if (val < 0)
-						*pStack->Alloc<__int8>() = val;
+						*pStack->Alloc<__int8>() = static_cast<__int8>(val);
 					else
-						*pStack->Alloc<unsigned __int8>() = val;
+						*pStack->Alloc<unsigned __int8>() = static_cast<unsigned __int8>(val);
 
 					nArgs++;
 
@@ -374,7 +374,7 @@ namespace VGS
 				if (!pStack->Align(2))
 					return _UI32_MAX;
 
-				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
+				while (long long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
 
 					if (val == 0 && pArgs->ID[0] != '0')
@@ -387,9 +387,9 @@ namespace VGS
 					}
 
 					if (val < 0)
-						*pStack->Alloc<__int16>() = val;
+						*pStack->Alloc<__int16>() = static_cast<__int16>(val);
 					else
-						*pStack->Alloc<unsigned __int16>() = val;
+						*pStack->Alloc<unsigned __int16>() = static_cast<unsigned __int16>(val);
 
 					nArgs++;
 
@@ -423,9 +423,9 @@ namespace VGS
 					}
 
 					if (val < 0)
-						*pStack->Alloc<__int32>() = val;
+						*pStack->Alloc<__int32>() = static_cast<__int32>(val);
 					else
-						*pStack->Alloc<unsigned __int32>() = val;
+						*pStack->Alloc<unsigned __int32>() = static_cast<unsigned __int32>(val);
 
 					nArgs++;
 
@@ -449,14 +449,15 @@ namespace VGS
 					pStack->Align(4);
 				}
 
-				while (long val = strtoll(pArgs->ID.data(), nullptr, 0))
+				while (long long val = strtoll(pArgs->ID.data(), nullptr, 0))
 				{
 					if (val == 0 && pArgs->ID[0] != '0')
 						break;
 
-					if (val > 0)
+					// Must be a postive number of bytes and less than 4gb
+					if (val > 0 && val < _UI32_MAX)
 					{
-						pStack->Alloc(val);
+						pStack->Alloc(static_cast<size_t>(val));
 						
 						nArgs++;
 
@@ -666,7 +667,7 @@ namespace VGS
 					op->R.rd = p.Value;
 				}	break;
 				case NODE_TYPE_IMMEDIATE:
-					op->I.i = strtol(pArgs[nArgs].ID.data(), nullptr, 0);
+					op->I.i = static_cast<__int16>(strtol(pArgs[nArgs].ID.data(), nullptr, 0));
 
 					// Was this maybe supposed to be a label?
 					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
@@ -695,9 +696,9 @@ namespace VGS
 					// Set offset
 					long offset = strtol(pArgs[nArgs].ID.substr(0, paren).data(), nullptr, 0);
 					if (offset < 0)
-						op->I.i = offset;
+						op->I.i = static_cast<__int16>(offset);
 					else
-						op->I.u = offset;
+						op->I.u = static_cast<unsigned __int16>(offset);
 
 					// Was this maybe supposed to be zero
 					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
@@ -720,7 +721,7 @@ namespace VGS
 				}	break;
 				case NODE_TYPE_RTARGET:
 				{
-					op->I.i = strtol(pArgs[nArgs].ID.data(), nullptr, 0);
+					op->I.i = static_cast<__int16>(strtol(pArgs[nArgs].ID.data(), nullptr, 0));
 
 					// Was this maybe supposed to be a label?
 					if (op->I.i == 0 && pArgs[nArgs].ID[0] != '0')
@@ -784,9 +785,9 @@ namespace VGS
 					ops[0].WORD = CPU_ADDI;
 					ops[0].I.rt = p1.Value;
 					if (val < 0)
-						ops[0].I.i = val;
+						ops[0].I.i = static_cast<__int16>(val);
 					else
-						ops[0].I.u = val;
+						ops[0].I.u = static_cast<unsigned __int16>(val);
 				}
 				else
 				{
@@ -862,6 +863,8 @@ namespace VGS
 
 			}	break;
 			#pragma endregion
+			default :
+				return _UI32_MAX;
 			}
 		}
 
@@ -1290,7 +1293,8 @@ namespace VGS
 			}
 
 			// Add new string
-			return (strcpy(s_strtab.Alloc(strlen(pString) + 1), pString) - s_strtab.Begin());
+			size_t strSize = strlen(pString) + 1;
+			return (reinterpret_cast<char*>(memcpy(s_strtab.Alloc(strSize), pString, strSize)) - s_strtab.Begin());
 		}
 	}
 }

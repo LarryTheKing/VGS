@@ -22,9 +22,9 @@ namespace VGS
 
 		bool Linker::Link(char const * const * fin, unsigned __int32 count, char const * const fout)
 		{
-			std::cout << "\Linking " << count << " file(s) :" << std::endl;
+			std::cout << "Linking " << count << " file(s) :" << std::endl;
 
-			for (int i = 0; i < count; i++)
+			for (unsigned __int32 i = 0; i < count; i++)
 			{
 				std::cout << "File :" << fin[i] << std::endl;
 				if (!AddObject(fin[i]))
@@ -33,16 +33,18 @@ namespace VGS
 					return false;
 				}
 			}
+
+			return true;
 		}
 
 		/**
-		*	Loads and ELF object and verifies that it is compatible with VGS
+		* Loads and ELF object and verifies that it is compatible with VGS
 		*
-		*	@param pFile	The pointer to the file name
-		*	@return			Returns a pointer to a malloc() block of memory that
-		*					contains the object, or nullptr on error
-		*	@requires		pFile is a pointer to a null terminated c-string
-		*					The client calls free() on the returned value when done
+		* @param pFile	The pointer to the file name
+		* @return	Returns a pointer to a malloc() block of memory that
+		*			contains the object, or nullptr on error
+		* @requires pFile is a pointer to a null terminated c-string
+		*			The client calls free() on the returned value when done
 		*/
 		char * VerifyELF(const char * const pFile)
 		{
@@ -54,7 +56,7 @@ namespace VGS
 			}
 
 			// Verify that this could be an ELF file
-			unsigned __int32 fileSize = fin.tellg();
+			size_t fileSize = static_cast<size_t>(fin.tellg());
 			if (fileSize < sizeof(Elf32_Ehdr))
 			{
 				std::cout << "ERROR : Not an ELF object" << std::endl;
@@ -113,7 +115,7 @@ namespace VGS
 				return false;
 			}
 
-
+			return true;
 		}
 	}
 }
