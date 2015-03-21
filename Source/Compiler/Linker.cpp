@@ -5,6 +5,8 @@
 #include <string>
 #include <cstdlib>
 
+#include "..\CPU_OP.h"
+
 namespace VGS
 {
 	namespace Compiler
@@ -38,7 +40,7 @@ namespace VGS
 		}
 
 		/**
-		* Loads and ELF object and verifies that it is compatible with VGS
+		* Loads an ELF object and verifies that it is compatible with VGS
 		*
 		* @param pFile	The pointer to the file name
 		* @return	Returns a pointer to a malloc() block of memory that
@@ -106,6 +108,93 @@ namespace VGS
 			return pData;
 		}
 
+		Elf32_Shdr * GetShdrByIndex(char * const pData, unsigned __int32 const index)
+		{
+			// Finds where the section headers are stored, returns the index'th one
+			return reinterpret_cast<Elf32_Shdr * const>(reinterpret_cast<Elf32_Ehdr * const>(pData)->e_shoff + pData) + index;
+		}
+
+		Elf32_Shdr * GetShdrByName(char * const pData, char const * const pName)
+		{
+			// Find the section header that describes where section names are stored
+			Elf32_Shdr * pShdr = GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
+			// Find these section names
+			const char * const pStr = pData + pShdr->sh_offset;
+
+			// Check for a matching section name
+			const unsigned __int32 Shnum = reinterpret_cast<Elf32_Ehdr*>(pData)->e_shnum;
+			for (unsigned __int32 i = 0; i < Shnum; i++)
+			{
+				// Get the section at index i
+				pShdr = GetShdrByIndex(pData, i);
+				// Compare section name and pName
+				if (strcmp(pStr + pShdr->sh_name, pName) == 0)
+					return pShdr;	// We found a match, return the section
+			}
+
+			return nullptr;
+		}
+
+		char const * const GetShdrName(char * const pData, unsigned __int32 index)
+		{
+			// Find the section header that describes where section names are stored
+			Elf32_Shdr * pShdr = GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
+			// Find these section names
+			const char * const pStr = pData + pShdr->sh_offset;
+
+			// Get the section at index
+			pShdr = GetShdrByIndex(pData, index);
+			// Return the name
+			return pStr + pShdr->sh_name;
+		}
+	
+		bool Linker::AddSections(char * const pData)
+		{
+			// How many sections are there
+			const unsigned __int32 Shnum = reinterpret_cast<Elf32_Ehdr*>(pData)->e_shnum;
+
+			Elf32_Shdr * pShdr;
+
+			// Add allocatable sections
+			for (unsigned __int32 i = 0; i < Shnum; i++)
+			{
+				pShdr = GetShdrByIndex(pData, i);
+				// Is this allocatable
+				if ((pShdr->sh_flags | SHF_ALLOC) == SHF_ALLOC)
+				{
+					// Does this go in ROM or RAM
+					DynamicStackAlloc * pStack = ((pShdr->sh_flags | SHF_WRITE) == SHF_WRITE ? &s_data : &s_text);
+
+					// Align stack to the section
+					pStack->Align(pShdr->sh_addralign);
+
+					// Update section address
+					pShdr->sh_addr = pStack->Offset();
+
+					// Allocate enough space to store the data
+					char * const pSpace = pStack->Alloc(pShdr->sh_size);
+					if (!pSpace){	// Check that we actually allocated space
+						std::cout << "ERROR : \"" << GetShdrName(pData, i)
+							<< "\" Out of memory; Unable to allocate " << pShdr->sh_size << " bytes" << std::endl;
+						return false;
+					}
+
+					// Add the section data
+					if(pShdr->sh_type == SHT_PROGBITS)	// Is there any data here
+						memcpy(pSpace, pData + pShdr->sh_offset, pShdr->sh_size);	// Copy data
+					else
+						memset(pSpace, 0x00, pShdr->sh_size);	// Zero space
+				}
+			}
+
+			return true;
+		}
+
+		bool Linker::LinkObject(char * const pData)
+		{
+			// TODO
+		}
+
 		bool Linker::AddObject(const char * const pFile)
 		{
 			char * const pData = VerifyELF(pFile);
@@ -115,7 +204,20 @@ namespace VGS
 				return false;
 			}
 
-			return true;
+			if (!AddSections(pData))
+			{
+				std::cout << "ERROR : Unable to add sections" << std::endl;
+				return false;
+			}
+
+			if (!LinkObject(pData))
+			{
+				std::cout << "ERROR : Unable to link object" << std::endl;
+				return false;
+			}
+			
+				return true;
 		}
+
 	}
 }
