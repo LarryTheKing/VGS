@@ -25,6 +25,7 @@ namespace VGS
 		private:
 			bool AddSections(char * const);
 			bool LinkObject(char * const);
+			bool ParseRela(Elf32_Shdr * const, char * const);
 		};
 	}
 }

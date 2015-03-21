@@ -190,9 +190,57 @@ namespace VGS
 			return true;
 		}
 
+		bool ProcessRela(Offset<CPU_OP> const pAdr, Elf32_Rela const rela)
+		{
+
+		}
+
+
+		bool Linker::ParseRela(Elf32_Shdr * const pShdr, char * const pData)
+		{
+			Elf32_Shdr * pShdrSymtab	= GetShdrByIndex(pData, pShdr->sh_link);
+			Elf32_Shdr * pShdrText		= GetShdrByIndex(pData, pShdr->sh_info);
+			Elf32_Shdr * pShdrStrtab	= GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
+
+			// Where is the rela data actually stored
+			Elf32_Rela * pRela			= reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset);
+			Elf32_Rela * pRelaEnd		= reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset + pShdr->sh_size);
+
+			// Where are the symbols actually stored
+			Elf32_Sym * pSymbols		= reinterpret_cast<Elf32_Sym*>(pData + pShdrSymtab->sh_offset);
+
+			// Where is the .text actually stored
+			Offset<CPU_OP> pText(pShdrText->sh_addr, ((pShdrText->sh_flags & SHF_WRITE) == SHF_WRITE ? &s_data : &s_text));
+
+			// Where are the strings actually stored
+			char * pStrtab = pData + pShdrStrtab->sh_offset;
+
+			// Process each rela
+			do {
+				Offset<CPU_OP> pAdr(pText.offset + pRela->r_offset, pText.pStack);
+				ProcessRela(pAdr, *pRela);
+			} while (++pRela != pRelaEnd);
+		}
+
 		bool Linker::LinkObject(char * const pData)
 		{
-			// TODO
+			// How many sections are there
+			const unsigned __int32 Shnum = reinterpret_cast<Elf32_Ehdr*>(pData)->e_shnum;
+
+			Elf32_Shdr * pShdr;
+
+			// Process all .rela sections
+			for (unsigned __int32 i = 0; i < Shnum; i++)
+			{
+				pShdr = GetShdrByIndex(pData, i);
+				// Is this .rela section
+				if (pShdr->sh_type == SHT_RELA)
+				{
+					
+				}
+			}
+
+			return true;
 		}
 
 		bool Linker::AddObject(const char * const pFile)

@@ -1152,7 +1152,7 @@ namespace VGS
 					if (Labels[l].ID == Globals[g].ID)
 					{
 						Globals[g].i.Value = l;		// Reference label
-						Labels[l].i.p1 = 1;			// Denotes thet this is a "global" label	
+						Labels[l].i.p1 = 1;			// Denotes that this is a "global" label	
 						break;
 					}
 				}
@@ -1218,7 +1218,7 @@ namespace VGS
 	
 			if (Globals.size())
 			{
-				// Add Local and Undefined Labels
+				// Add Global Labels
 				for (unsigned __int32 l = 0; l < Labels.size(); l++)
 				{
 					if (Labels[l].i.p1)
