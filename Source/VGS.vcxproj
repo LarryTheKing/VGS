@@ -143,6 +143,7 @@
     <ClInclude Include="Compiler\Builder.h" />
     <ClInclude Include="Compiler\Compiler.h" />
     <ClInclude Include="Compiler\ELF.h" />
+    <ClInclude Include="Compiler\Linker.h" />
     <ClInclude Include="Compiler\Node.h" />
     <ClInclude Include="Compiler\Offset.h" />
     <ClInclude Include="Compiler\Stack.h" />
@@ -156,6 +157,7 @@
   <ItemGroup>
     <ClCompile Include="Compiler\Builder.cpp" />
     <ClCompile Include="Compiler\Compiler.cpp" />
+    <ClCompile Include="Compiler\Linker.cpp" />
     <ClCompile Include="Compiler\Stack.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />

@@ -192,9 +192,8 @@ namespace VGS
 
 		bool ProcessRela(Offset<CPU_OP> const pAdr, Elf32_Rela const rela)
 		{
-
+			return false;
 		}
-
 
 		bool Linker::ParseRela(Elf32_Shdr * const pShdr, char * const pData)
 		{
@@ -217,9 +216,20 @@ namespace VGS
 
 			// Process each rela
 			do {
-				Offset<CPU_OP> pAdr(pText.offset + pRela->r_offset, pText.pStack);
-				ProcessRela(pAdr, *pRela);
+				Offset<CPU_OP>	pFix(pText.offset + pRela->r_offset, pText.pStack);
+				const unsigned __int32 sIndex = ELF32_R_SYM(pRela->r_info);
+				if (pSymbols[sIndex].st_value != UINT_MAX)
+				{
+
+				}
+				else
+				{
+
+				}
+				
 			} while (++pRela != pRelaEnd);
+
+			return true;
 		}
 
 		bool Linker::LinkObject(char * const pData)

@@ -1,7 +1,9 @@
 # Reads in three integers and prints their sum
 
 		.text
+		.global main
 main:
+		jal		undefRef		# test
 		jal		pread			# read first integer
 		nop						#
 		mov		$s0,$v0			# save it in $s0
@@ -31,6 +33,7 @@ main:
          
 		li		$v0,5			# wait for input
 		syscall					#
+
 
 		li		$v0,10			# exit
 		syscall
