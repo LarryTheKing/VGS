@@ -37,6 +37,7 @@ namespace VGS
 	{
 		union
 		{
+			__int32		SWORD;
 			unsigned __int32 WORD;
 			CPU_OP_I	I;
 			CPU_OP_J	J;

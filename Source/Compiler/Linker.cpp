@@ -11,6 +11,24 @@ namespace VGS
 {
 	namespace Compiler
 	{
+		Linker::Linker(void)
+			: s_text(128), s_data(128), s_strtab(128), s_symtab(128), s_rela(128)
+		{}
+
+		Linker::~Linker(void)
+		{
+			Reset();
+		}
+
+		void Linker::Reset(void)
+		{
+			s_text.Reset();
+			s_data.Reset();
+			s_strtab.Reset();
+			s_symtab.Reset();
+			s_rela.Reset();
+		}
+
 		struct ObjDef
 		{
 			unsigned __int32 oText;
@@ -24,11 +42,11 @@ namespace VGS
 
 		bool Linker::Link(char const * const * fin, unsigned __int32 count, char const * const fout)
 		{
-			std::cout << "Linking " << count << " file(s) :" << std::endl;
+			std::cout << "Linking " << count << " file(s) :" << std::endl << std::endl;
 
 			for (unsigned __int32 i = 0; i < count; i++)
 			{
-				std::cout << "File :" << fin[i] << std::endl;
+				std::cout << "Linking file : \"" << fin[i] << '\"' << std::endl;
 				if (!AddObject(fin[i]))
 				{
 					std::cout << "ERROR : Failed to add object\n" << std::endl;
@@ -104,6 +122,8 @@ namespace VGS
 			fin.read(pData, fileSize);
 			fin.close();
 
+			std::cout << ">> Is compatible ELF file" << std::endl << std::endl;
+
 			// Return pointer to loaded content
 			return pData;
 		}
@@ -155,18 +175,22 @@ namespace VGS
 
 			Elf32_Shdr * pShdr;
 
+			// Print message
+			std::cout << "Allocating sections..." << std::endl;
+
 			// Add allocatable sections
 			for (unsigned __int32 i = 0; i < Shnum; i++)
 			{
 				pShdr = GetShdrByIndex(pData, i);
 				// Is this allocatable
-				if ((pShdr->sh_flags | SHF_ALLOC) == SHF_ALLOC)
+				if ((pShdr->sh_flags & SHF_ALLOC) == SHF_ALLOC)
 				{
 					// Does this go in ROM or RAM
-					DynamicStackAlloc * pStack = ((pShdr->sh_flags | SHF_WRITE) == SHF_WRITE ? &s_data : &s_text);
+					DynamicStackAlloc * pStack = ((pShdr->sh_flags & SHF_WRITE) == SHF_WRITE ? &s_data : &s_text);
 
 					// Align stack to the section
-					pStack->Align(pShdr->sh_addralign);
+					if (pShdr->sh_addralign)
+						pStack->Align(pShdr->sh_addralign);
 
 					// Update section address
 					pShdr->sh_addr = pStack->Offset();
@@ -184,15 +208,53 @@ namespace VGS
 						memcpy(pSpace, pData + pShdr->sh_offset, pShdr->sh_size);	// Copy data
 					else
 						memset(pSpace, 0x00, pShdr->sh_size);	// Zero space
+
+
+					// Print message
+					std::cout << ">> " << GetShdrName(pData, i) << "\t: " << pShdr->sh_size << "\tbytes\t@ 0x" 
+						<< std::hex << pShdr->sh_addr <<std::dec<<std::endl;
 				}
 			}
+
+			std::cout << std::endl;
 
 			return true;
 		}
 
-		bool ProcessRela(Offset<CPU_OP> const pAdr, Elf32_Rela const rela)
+		bool ProcessRela(Offset<CPU_OP> pAdr, Elf32_Rela const * const rela, Elf32_Sym const * const pSym, char * const pData)
 		{
-			return false;
+			const size_t symVal = pSym->st_value;
+			const size_t symBind = ELF32_ST_BIND(pSym->st_info);
+
+			Elf32_Shdr * pShdrParent = GetShdrByIndex(pData, pSym->st_shndx);
+			
+			switch (ELF32_R_TYPE(rela->r_info))
+			{
+			case R_MIPS_16:
+				pAdr->I.u = static_cast<unsigned __int16>(symVal) + static_cast<__int16>(rela->r_addend);
+				break;
+			case R_MIPS_32:
+				pAdr->WORD = static_cast<unsigned __int32>(symVal + rela->r_addend);
+				break;
+			case R_MIPS_REL32:
+				pAdr->SWORD = rela->r_addend - static_cast<Elf32_Sword>(pAdr.offset) + symVal;
+				break;
+			case R_MIPS_26:
+				pAdr->J.target = static_cast<unsigned __int32> (((rela->r_addend << 2) | (pShdrParent->sh_addr & 0xf0000000) + symVal) >> 2);
+				break;
+			case R_MIPS_HI16:
+				// pAdr->I.u = 
+				break;
+			case R_MIPS_LO16:
+				pAdr->I.u = static_cast<unsigned __int32>(symVal);
+				break;
+			case R_MIPS_PC16:
+				pAdr->I.u = static_cast<unsigned __int16>(symVal)+static_cast<__int16>(rela->r_addend) - pShdrParent->sh_addr;
+				break;
+
+			}
+
+			return true;
 		}
 
 		bool Linker::ParseRela(Elf32_Shdr * const pShdr, char * const pData)
@@ -214,20 +276,39 @@ namespace VGS
 			// Where are the strings actually stored
 			char * pStrtab = pData + pShdrStrtab->sh_offset;
 
+			// Priny message
+			std::cout << ">> .rela\t: " 
+				<< std::dec << pRelaEnd - pRela
+				<< std::endl;
+
+			size_t nDefined = 0;
+			size_t nUndefined = 0;
+
 			// Process each rela
 			do {
 				Offset<CPU_OP>	pFix(pText.offset + pRela->r_offset, pText.pStack);
 				const unsigned __int32 sIndex = ELF32_R_SYM(pRela->r_info);
+				
+				// See if this symbol is defined
 				if (pSymbols[sIndex].st_value != UINT_MAX)
-				{
-
+				{	// Yes this symbol is defined
+					nDefined++;
+					// Process the .rela link
+					if (!ProcessRela(pFix, pRela, pSymbols + sIndex, pData))
+					{
+						std::cout << "ERROR : Failed to parse .rela object " << std::endl;
+						return false;
+					}
 				}
-				else
+				else // This is an undefined symbol
 				{
-
+					nUndefined++;
 				}
 				
 			} while (++pRela != pRelaEnd);
+
+			std::cout << ">>>> Defined\t: " << nDefined << std::endl
+			<< ">>>> Undefined\t: " << nUndefined << std::endl;
 
 			return true;
 		}
@@ -239,16 +320,27 @@ namespace VGS
 
 			Elf32_Shdr * pShdr;
 
-			// Process all .rela sections
+			// Print message
+			std::cout << "Linking sections..." << std::endl;
+
+			// Process all link related sections
 			for (unsigned __int32 i = 0; i < Shnum; i++)
 			{
 				pShdr = GetShdrByIndex(pData, i);
+
 				// Is this .rela section
 				if (pShdr->sh_type == SHT_RELA)
 				{
-					
+					if (!ParseRela(pShdr, pData))
+					{
+						// Print error message
+						std::cout << "ERROR : Unable to process .rela section" << std::endl;
+						return false;
+					}
 				}
 			}
+
+			// Add global symbols
 
 			return true;
 		}

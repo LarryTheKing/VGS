@@ -2,13 +2,19 @@
 
 #include "System.h"
 #include "Compiler/Compiler.h"
-#include "Compiler\Builder.h"
+#include "Compiler/Linker.h"
+#include "Compiler/Builder.h"
 
 int main()
 {
 	
 	VGS::Compiler::Builder builder("Language.txt");
 	builder.Build("Test.asm", "Test.elf");
+
+	const char * files[] = { "Test.elf", "3" };
+
+	VGS::Compiler::Linker linker;
+	linker.Link(files, 1, "Out.elf");
 
 	VGS::Compiler::Compiler comp;
 

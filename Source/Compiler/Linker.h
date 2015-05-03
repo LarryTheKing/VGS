@@ -19,6 +19,10 @@ namespace VGS
 			DynamicStackAlloc	s_rela;		// .rela.text	For non-local references
 
 		public:
+			Linker(void);
+			~Linker();
+			void Reset(void);
+
 			bool Link(char const * const [], unsigned __int32, char const * const);
 			bool AddObject(const char * const);
 
