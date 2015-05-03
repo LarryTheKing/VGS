@@ -209,7 +209,6 @@ namespace VGS
 					else
 						memset(pSpace, 0x00, pShdr->sh_size);	// Zero space
 
-
 					// Print message
 					std::cout << ">> " << GetShdrName(pData, i) << "\t: " << pShdr->sh_size << "\tbytes\t@ 0x" 
 						<< std::hex << pShdr->sh_addr <<std::dec<<std::endl;
@@ -221,42 +220,124 @@ namespace VGS
 			return true;
 		}
 
+		bool Linker::ParseSymTab(Elf32_Shdr * const pShdr, char * const pData)
+		{
+			// Where are strings stored in pData
+			Elf32_Shdr * pShdrStrtab = GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
+
+			// Where are the symbols actually stored
+			Elf32_Sym * pSymbol		= reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset);
+			Elf32_Sym * pSymbolEnd	= reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset + pShdr->sh_size);
+
+			// Where are the strings actually stored
+			char * pStrtab = pData + pShdrStrtab->sh_offset;
+
+			// Print message
+			std::cout << ">> " << pStrtab + pShdr->sh_name << "\t: "
+				<< pSymbol - pSymbolEnd << " References ";
+
+			size_t nDefined = 0;
+			size_t nUndefined = 0;
+
+			// Process each symbol
+			do {
+				// See if this symbol is global
+				if (ELF32_ST_BIND(pSymbol->st_value) == STB_GLOBAL)
+				{	// Yes this symbol is defined
+
+				}
+				// See if this symbol is weak
+				else if (ELF32_ST_BIND(pSymbol->st_value) == STB_WEAK)
+				{
+
+				}
+
+			} while (++pSymbol != pSymbolEnd);
+
+			std::cout << "( " << nUndefined << " Undefined )" << std::endl << std::endl;
+
+			return true;
+		}
+		bool Linker::AddSymbols(char * const pData)
+		{
+			// How many sections are there
+			const unsigned __int32 Shnum = reinterpret_cast<Elf32_Ehdr*>(pData)->e_shnum;
+
+			Elf32_Shdr * pShdr;
+
+			// Print message
+			std::cout << "Adding symbols..." << std::endl;
+
+			// Process all symbol related sections
+			for (unsigned __int32 i = 0; i < Shnum; i++)
+			{
+				pShdr = GetShdrByIndex(pData, i);
+
+				// Is this symtab section
+				if (pShdr->sh_type == SHT_SYMTAB)
+				{
+					if (!ParseSymTab(pShdr, pData))
+					{
+						// Print error message
+						std::cout << "ERROR : Unable to process symbol table" << std::endl;
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
 		bool ProcessRela(Offset<CPU_OP> pAdr, Elf32_Rela const * const rela, Elf32_Sym const * const pSym, char * const pData)
 		{
-			const size_t symVal = pSym->st_value;
 			const size_t symBind = ELF32_ST_BIND(pSym->st_info);
 
 			Elf32_Shdr * pShdrParent = GetShdrByIndex(pData, pSym->st_shndx);
-			
+
+			const Elf32_Addr	S	= pSym->st_value;
+			const Elf32_Sword	A	= rela->r_addend;
+			const Elf32_Addr	EA	= pAdr.offset;
+			const Elf32_Addr	P	= pShdrParent->sh_addr;
+
+	
 			switch (ELF32_R_TYPE(rela->r_info))
 			{
+			case R_MIPS_NONE:
+				pAdr->SWORD = S;
+				break;
 			case R_MIPS_16:
-				pAdr->I.u = static_cast<unsigned __int16>(symVal) + static_cast<__int16>(rela->r_addend);
+				pAdr->I.u = (S + A) & 0xFFFF;
 				break;
 			case R_MIPS_32:
-				pAdr->WORD = static_cast<unsigned __int32>(symVal + rela->r_addend);
+				pAdr->WORD = S + A;
 				break;
 			case R_MIPS_REL32:
-				pAdr->SWORD = rela->r_addend - static_cast<Elf32_Sword>(pAdr.offset) + symVal;
+				pAdr->SWORD = A - EA + S;
 				break;
 			case R_MIPS_26:
-				pAdr->J.target = static_cast<unsigned __int32> (((rela->r_addend << 2) | (pShdrParent->sh_addr & 0xf0000000) + symVal) >> 2);
+				pAdr->J.target = (((A << 2) | (P & 0xf0000000) + S) >> 2);
 				break;
 			case R_MIPS_HI16:
-				// pAdr->I.u = 
+			{
+				const size_t AHL = (rela->r_addend << 16) + (short)((rela + 1)->r_addend);
+				pAdr->I.u = ((AHL + S) - (short)(AHL + S)) >> 16;
 				break;
+			}
 			case R_MIPS_LO16:
-				pAdr->I.u = static_cast<unsigned __int32>(symVal);
+			{
+				const size_t AHL = ((rela - 1)->r_addend << 16) + (short)(rela->r_addend);
+				pAdr->I.u = AHL + S;
 				break;
+			}
 			case R_MIPS_PC16:
-				pAdr->I.u = static_cast<unsigned __int16>(symVal)+static_cast<__int16>(rela->r_addend) - pShdrParent->sh_addr;
+				pAdr->I.u = A + S - P;
 				break;
-
+			default:
+				return false;
+				break;
 			}
 
 			return true;
 		}
-
 		bool Linker::ParseRela(Elf32_Shdr * const pShdr, char * const pData)
 		{
 			Elf32_Shdr * pShdrSymtab	= GetShdrByIndex(pData, pShdr->sh_link);
@@ -276,10 +357,9 @@ namespace VGS
 			// Where are the strings actually stored
 			char * pStrtab = pData + pShdrStrtab->sh_offset;
 
-			// Priny message
-			std::cout << ">> .rela\t: " 
-				<< std::dec << pRelaEnd - pRela
-				<< std::endl;
+			// Print message
+			std::cout << ">> .rela\t: "
+				<< pRelaEnd - pRela << " References ";
 
 			size_t nDefined = 0;
 			size_t nUndefined = 0;
@@ -296,7 +376,7 @@ namespace VGS
 					// Process the .rela link
 					if (!ProcessRela(pFix, pRela, pSymbols + sIndex, pData))
 					{
-						std::cout << "ERROR : Failed to parse .rela object " << std::endl;
+						std::cout << std::endl << "ERROR : Failed to parse .rela object " << std::endl;
 						return false;
 					}
 				}
@@ -307,12 +387,10 @@ namespace VGS
 				
 			} while (++pRela != pRelaEnd);
 
-			std::cout << ">>>> Defined\t: " << nDefined << std::endl
-			<< ">>>> Undefined\t: " << nUndefined << std::endl;
+			std::cout << "( " << nUndefined << " Undefined )" << std::endl << std::endl;
 
 			return true;
 		}
-
 		bool Linker::LinkObject(char * const pData)
 		{
 			// How many sections are there
@@ -339,9 +417,6 @@ namespace VGS
 					}
 				}
 			}
-
-			// Add global symbols
-
 			return true;
 		}
 
@@ -360,6 +435,12 @@ namespace VGS
 				return false;
 			}
 
+			if (!AddSymbols(pData))
+			{
+				std::cout << "ERROR : Unable to add symbols" << std::endl;
+				return false;
+			}
+
 			if (!LinkObject(pData))
 			{
 				std::cout << "ERROR : Unable to link object" << std::endl;
@@ -369,5 +450,20 @@ namespace VGS
 				return true;
 		}
 
+		Elf32_Word Linker::AddString(char const * const pString)
+		{
+			// Return offset to existing string
+			for (char * pOld = s_strtab.Begin(); pOld != s_strtab.Cursor();)
+			{
+				if (strcmp(pOld, pString) == 0)
+					return pOld - s_strtab.Begin();
+
+				pOld += strlen(pOld) + 1;
+			}
+
+			// Add new string
+			size_t strSize = strlen(pString) + 1;
+			return (reinterpret_cast<char*>(memcpy(s_strtab.Alloc(strSize), pString, strSize)) - s_strtab.Begin());
+		}
 	}
 }

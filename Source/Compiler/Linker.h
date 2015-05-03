@@ -24,12 +24,20 @@ namespace VGS
 			void Reset(void);
 
 			bool Link(char const * const [], unsigned __int32, char const * const);
-			bool AddObject(const char * const);
-
+			
 		private:
+			
+
+			bool AddObject(const char * const);
 			bool AddSections(char * const);
+			bool AddSymbols(char * const);
 			bool LinkObject(char * const);
 			bool ParseRela(Elf32_Shdr * const, char * const);
+			bool ParseSymTab(Elf32_Shdr * const, char * const);
+
+			Elf32_Word Linker::AddString(char const * const);
+			
+
 		};
 	}
 }
