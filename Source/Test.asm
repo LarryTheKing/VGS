@@ -59,6 +59,7 @@ pread:
 		nop                     #  
         
 		.data
+		.global prompt
 prompt:	.asciiz	"Enter an integer: "
 s_sum:	.asciiz	"Sum\t\t= "
 s_quit:	.asciiz	"\n\nEnter any number to quit: "

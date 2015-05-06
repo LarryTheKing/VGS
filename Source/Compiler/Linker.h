@@ -35,8 +35,8 @@ namespace VGS
 			bool ParseRela(Elf32_Shdr * const, char * const);
 			bool ParseSymTab(Elf32_Shdr * const, char * const);
 
-			Elf32_Word Linker::AddString(char const * const);
-			
+			Elf32_Word			AddString(char const * const);
+			Offset<Elf32_Sym>	AddSymbol(char const * const);
 
 		};
 	}

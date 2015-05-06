@@ -142,7 +142,7 @@ namespace VGS
 			Elf32_Word		st_name;		// Specifies name of symbol table entry. Index into string table
 			Elf32_Addr		st_value;		// Gives the value associated with the symbol
 			Elf32_Word		st_size;		// Size of symbol
-			unsigned char	st_info;		// Holds st_bind, st_type
+			unsigned char	st_info;			// Holds st_bind, st_type
 			unsigned char	st_other;		// Always 0
 			Elf32_Half		st_shndx;		// Section header index
 		};

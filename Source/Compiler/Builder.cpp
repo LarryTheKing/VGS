@@ -1167,7 +1167,7 @@ namespace VGS
 					if (Labels[l].ID == References[r].ID)
 					{
 						defined = true;
-						break;
+						break;	
 					}
 				}
 

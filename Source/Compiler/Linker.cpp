@@ -7,6 +7,8 @@
 
 #include "..\CPU_OP.h"
 
+#define MS_ROM	0x80000000
+
 namespace VGS
 {
 	namespace Compiler
@@ -220,6 +222,27 @@ namespace VGS
 			return true;
 		}
 
+		Offset<Elf32_Sym>	Linker::AddSymbol(char const * const pName)
+		{
+			// Check each symbol for matching text
+			// Return an existsing symbol if a match exists
+			for (Elf32_Sym * pSym = reinterpret_cast<Elf32_Sym*>(s_symtab.Begin());
+				pSym != reinterpret_cast<Elf32_Sym*>(s_symtab.Cursor()); pSym++)
+			{
+				// If the symbol name matches
+				if (strcmp(pSym->st_name + s_text.Begin(), pName) == 0)
+				{
+					return Offset<Elf32_Sym>(pSym, &s_symtab);
+				}
+			}
+
+			// Add symbol
+			Elf32_Sym * pSym = s_symtab.Alloc<Elf32_Sym>();
+			memset(&pSym->st_value, NULL, sizeof(Elf32_Sym) - sizeof(pSym->st_name));
+			pSym->st_name = AddString(pName);
+			return Offset<Elf32_Sym>(pSym, &s_symtab);
+		}
+
 		bool Linker::ParseSymTab(Elf32_Shdr * const pShdr, char * const pData)
 		{
 			// Where are strings stored in pData
@@ -234,27 +257,93 @@ namespace VGS
 
 			// Print message
 			std::cout << ">> " << pStrtab + pShdr->sh_name << "\t: "
-				<< pSymbol - pSymbolEnd << " References ";
+				<< pSymbolEnd - pSymbol << " Symbols " << std::endl;
 
-			size_t nDefined = 0;
+			size_t nGlobal = 0;
+			size_t nWeak = 0;
 			size_t nUndefined = 0;
 
 			// Process each symbol
 			do {
+
+				// Is this an undefined symbol
+				if (pSymbol->st_shndx == SHN_UNDEF)
+				{
+					// Add symbol / find existing symbol
+					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
+
+					// Remeber index to symbol
+					pSymbol->st_value = oSym.offset / sizeof(Elf32_Sym);
+
+					nUndefined++;
+				}
+				// If symbol references a section, update its value
+				else if (pSymbol->st_shndx < reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shnum)
+				{
+					// Get the corresponding section
+					Elf32_Shdr * pShdr = GetShdrByIndex(pData, pSymbol->st_shndx);
+
+					// Offset the value according to the section
+					pSymbol->st_value += pShdr->sh_addr;
+
+					// Is this section in ROM?
+					if ((pShdr->sh_flags & (SHF_WRITE | SHF_ALLOC)) == (SHF_ALLOC))
+					{
+						pSymbol->st_value |= MS_ROM;
+					}
+				}
+
 				// See if this symbol is global
-				if (ELF32_ST_BIND(pSymbol->st_value) == STB_GLOBAL)
-				{	// Yes this symbol is defined
+				if (ELF32_ST_BIND(pSymbol->st_info) == STB_GLOBAL)
+				{	
+					// Add symbol / find existing symbol
+					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
+
+					// Check if global symbol already existed
+					if (oSym->st_other)
+					{
+						std::cout << "ERROR : Redifinition of existing global \"" << pStrtab + pSymbol->st_name << " \"" << std::endl;
+						return false;
+					}
+
+					// Add data to symbol
+					oSym->st_value = pSymbol->st_value;
+					oSym->st_size = pSymbol->st_size;
+					oSym->st_info = pSymbol->st_info;
+					oSym->st_shndx = 1;
+
+					// Mark as global symbol
+					oSym->st_other = true;
+
+					nGlobal++;
 
 				}
 				// See if this symbol is weak
-				else if (ELF32_ST_BIND(pSymbol->st_value) == STB_WEAK)
+				else if (ELF32_ST_BIND(pSymbol->st_info) == STB_WEAK)
 				{
+					// Add symbol / find existing symbol
+					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
 
+					// Add data to symbol
+					oSym->st_value = pSymbol->st_value;
+					oSym->st_size = pSymbol->st_size;
+					oSym->st_info = pSymbol->st_info;
+					oSym->st_shndx = 1;
+
+					nWeak++;
 				}
 
 			} while (++pSymbol != pSymbolEnd);
 
-			std::cout << "( " << nUndefined << " Undefined )" << std::endl << std::endl;
+
+			if (nUndefined)
+				std::cout << ">>>> Undefined\t: " << nUndefined << std::endl;
+			if (nGlobal)
+				std::cout << ">>>> Global\t: " << nGlobal << std::endl;
+			if (nWeak)
+				std::cout << ">>>> Weak\t: " << nGlobal << std::endl;
+
+			std::cout << std::endl;
 
 			return true;
 		}
@@ -370,7 +459,7 @@ namespace VGS
 				const unsigned __int32 sIndex = ELF32_R_SYM(pRela->r_info);
 				
 				// See if this symbol is defined
-				if (pSymbols[sIndex].st_value != UINT_MAX)
+				if (pSymbols[sIndex].st_shndx)
 				{	// Yes this symbol is defined
 					nDefined++;
 					// Process the .rela link
