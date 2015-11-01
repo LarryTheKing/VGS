@@ -40,30 +40,30 @@ namespace VGS
 
 		bool Builder::Build(char const * const fin, char const * const fout)
 		{
-			std::cout << "\nBuilding file : \"" << fin << "\"\n";
+			std::cout << std::endl << "Building file : \"" << fin << "\"" << std::endl;
 
 			Reset();
 			if (!GenSource(fin))
 			{
-				std::cout << "ERROR : Failed to create source tree\n";
+				std::cout << "ERROR : Failed to create source tree" << std::endl;
 				return false;
 			}
 
 			unsigned __int32 retGPT = GenProgTree();
 			if (retGPT != _UI32_MAX)
 			{
-				std::cout << "ERROR : Failed to create program tree\n";
-				std::cout << ">> Line " << Source[retGPT].Line << " : \"" << Source[retGPT].Text << "\"\n\n";
+				std::cout << "ERROR : Failed to create program tree" << std::endl;
+				std::cout << ">> Line " << Source[retGPT].Line << " : \"" << Source[retGPT].Text << "\"" <<std::endl <<std::endl;
 				return false;
 			}
 
 			if (!GenELF(fout))
 			{
-				std::cout << "ERROR : Failed to create elf object\n";
+				std::cout << "ERROR : Failed to create ELF object" << std::endl;
 				return false;
 			}
 
-			std::cout << "\nBuild successful!\n";
+			std::cout << std::endl << "Build successful!" << std::endl;
 
 			return true;
 		}
@@ -1321,7 +1321,7 @@ namespace VGS
 			fout.close();
 
 			// Print progress
-			std::cout << ">> Saved ELF object as \"" << pFile << "\"\n";
+			std::cout << ">> Saved ELF object as \"" << pFile << "\"" << std::endl;
 
 			return true;
 		}

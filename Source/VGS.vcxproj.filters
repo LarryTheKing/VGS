@@ -51,6 +51,9 @@
     <ClInclude Include="Compiler\Linker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CPU.cpp">
@@ -74,9 +77,11 @@
     <ClCompile Include="Compiler\Linker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Test.vgs" />
     <None Include="Test.asm">
       <Filter>Source Files</Filter>
     </None>

@@ -40,6 +40,8 @@ namespace VGS
 		System(void * const, unsigned __int32 const);
 		~System();
 
+
+
 		void Run();
 	public:
 		template <typename T = __int32> inline T	GetMem(unsigned __int32 const);

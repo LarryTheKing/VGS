@@ -47,19 +47,27 @@ namespace VGS
 		{
 			std::cout << "Linking " << count << " file(s) :" << std::endl << std::endl;
 
+			// Link each file
 			for (unsigned __int32 i = 0; i < count; i++)
 			{
 				std::cout << "Linking file : \"" << fin[i] << '\"' << std::endl;
-				if (!AddObject(fin[i]))
+				if (!AddObject(fin[i]))	// Add the contents of this object file to the program
 				{
 					std::cout << "ERROR : Failed to add object\n" << std::endl;
 					return false;
 				}
 			}
 
-			if (!Finalize())
+			if (!Finalize())	// Finalize any remaining references
 			{
 				std::cout << "ERROR : Unable to finalize" << std::endl;
+				return false;
+			}
+
+			if (!GenELF(fout))
+			{
+				std::cout << "ERROR : Failed to create ELF object\n";
+				return false;
 			}
 
 			return true;
@@ -305,9 +313,10 @@ namespace VGS
 					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
 
 					// Check if global symbol already existed
+					// If symbol is undefined 
 					if (oSym->st_other)
 					{
-						std::cout << "ERROR : Redifinition of existing global \"" << pStrtab + pSymbol->st_name << " \"" << std::endl;
+						std::cout << "ERROR : Redefinition of existing global \"" << pStrtab + pSymbol->st_name << " \"" << std::endl;
 						return false;
 					}
 
@@ -381,17 +390,13 @@ namespace VGS
 			return true;
 		}
 
-		bool ProcessRela(Offset<CPU_OP> pAdr, Elf32_Rela const * const rela, Elf32_Sym const * const pSym, char * const pData)
+		bool ProcessRela(Offset<CPU_OP> pAdr, Elf32_Rela const * const rela, Elf32_Sym const * const pSym, const Elf32_Addr P)
 		{
 			const size_t symBind = ELF32_ST_BIND(pSym->st_info);
-
-			Elf32_Shdr * pShdrParent = GetShdrByIndex(pData, pSym->st_shndx);
 
 			const Elf32_Addr	S = pSym->st_value;
 			const Elf32_Sword	A = rela->r_addend;
 			const Elf32_Addr	EA = pAdr.offset;
-			const Elf32_Addr	P = pShdrParent->sh_addr;
-
 
 			switch (ELF32_R_TYPE(rela->r_info))
 			{
@@ -468,7 +473,7 @@ namespace VGS
 				{	// Yes this symbol is defined
 					nDefined++;
 					// Process the .rela link
-					if (!ProcessRela(pFix, pRela, pSymbols + sIndex, pData))
+					if (!ProcessRela(pFix, pRela, pSymbols + sIndex, GetShdrByIndex(pData, (pSymbols + sIndex)->st_shndx)->sh_addr))
 					{
 						std::cout << std::endl << "ERROR : Failed to parse .rela object " << std::endl;
 						return false;
@@ -477,6 +482,7 @@ namespace VGS
 				else // This is an undefined symbol
 				{
 					nUndefined++;
+					// Add this to the list of rela operations to evaluate at the end
 					Offset<Elf32_Rela> oRela(s_rela.Alloc<Elf32_Rela>(), &s_rela);
 					oRela->r_addend = pRela->r_addend;
 					oRela->r_info = ELF32_R_INFO(pSymbols[sIndex].st_value, ELF32_R_TYPE(pRela->r_info));
@@ -520,6 +526,7 @@ namespace VGS
 
 		bool Linker::AddObject(const char * const pFile)
 		{
+			// Attempt to load the ELF object, verifying that it is an ELF object
 			char * const pData = VerifyELF(pFile);
 			if (!pData)
 			{
@@ -527,12 +534,14 @@ namespace VGS
 				return false;
 			}
 
+			// Add each section of this object
 			if (!AddSections(pData))
 			{
 				std::cout << "ERROR : Unable to add sections" << std::endl;
 				return false;
 			}
 
+			// 
 			if (!AddSymbols(pData))
 			{
 				std::cout << "ERROR : Unable to add symbols" << std::endl;
@@ -574,12 +583,17 @@ namespace VGS
 
 			// Process each rela
 			do {
+				// Find the corresponding symbol
+				Elf32_Sym * pSym = pSymTab + ELF32_R_SYM(pRela->r_info);
+
 				// See if this symbol is defined
-				if (pSymTab[ELF32_R_SYM(pRela->r_info)].st_info)
+				if (pSym->st_info)
 				{
-					
+					// Process the .rela link
+					Offset<CPU_OP> pFix(pRela->r_offset, &s_text);
+					ProcessRela(pFix, pRela, pSym, 0);
 				}
-				else
+			else
 				{
 					std::cout << "ERROR : Undefined symbol \"" << s_strtab.Begin() + pSymTab[ELF32_R_SYM(pRela->r_info)].st_name
 						<< "\" : Aborting" << std::endl;
@@ -589,5 +603,161 @@ namespace VGS
 
 			return true;
 		}
+	
+		bool Linker::GenELF(char const * const pFile)
+		{
+			std::cout << "\nGenerating ELF object\n";
+
+			DynamicStackAlloc ELF(512);
+			DynamicStackAlloc s_hdr(128);	// Temp storage for section headers
+			s_strtab.Reset();				// We will reuse s_strtab
+			*s_strtab.Alloc<char>() = 0;
+
+			Elf32_Half cursec = 1;	// Tracks current Elf32_Shdr index, starts at 1 because UNDEF section = 0
+#pragma region EHDR
+			Offset<Elf32_Ehdr> o_ehdr(ELF.Offset(), &ELF);
+			memset(ELF.Alloc<Elf32_Ehdr>(), 0x00, sizeof(Elf32_Ehdr));	// Zero header
+			o_ehdr->e_ident[EI_MAG0] = ELFMAG0;	// Magic 0x7f
+			o_ehdr->e_ident[EI_MAG1] = ELFMAG1;	// 'E'
+			o_ehdr->e_ident[EI_MAG2] = ELFMAG2;	// 'L'
+			o_ehdr->e_ident[EI_MAG3] = ELFMAG3;	// 'F'
+			o_ehdr->e_ident[EI_CLASS] = 1;	// 32 bit
+			o_ehdr->e_ident[EI_DATA] = 1;	// litle endian
+			o_ehdr->e_ident[EI_VERSION] = 1;	// ELF version 1
+			o_ehdr->e_type = ET_EXEC;
+			o_ehdr->e_machine = EM_MIPS;
+			o_ehdr->e_version = EV_CURRENT;
+			o_ehdr->e_flags = EF_MIPS_NOREORDER;
+			o_ehdr->e_ehsize = sizeof(Elf32_Ehdr);
+			o_ehdr->e_shentsize = sizeof(Elf32_Shdr);
+#pragma endregion
+
+#pragma region UNDEFINED_SECTION
+			memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));	// Add UNDEF section
+#pragma endregion
+
+#pragma region TEXT
+			Offset<CPU_OP>		o_text;
+			Offset<Elf32_Shdr>	o_text_hdr;
+			Elf32_Half si_text = 0;
+			if (s_text.Offset())	// Store .text data in elf and create eshdr
+			{
+				// data
+				o_text = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_text.Offset()), s_text.Begin(), s_text.Offset());
+
+				// shdr
+				o_text_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
+				si_text = cursec++;
+
+				o_text_hdr->sh_name = AddString(".text");
+				o_text_hdr->sh_type = SHT_PROGBITS;
+				o_text_hdr->sh_flags = SHF_ALLOC | SHF_EXECINSTR;
+				o_text_hdr->sh_offset = o_text.offset;
+				o_text_hdr->sh_size = s_text.Offset();
+				o_text_hdr->sh_addralign = 0x04;
+
+				// Print progress
+				std::cout << ">> .text\t: " << o_text_hdr->sh_size << " \tbytes\n";
+			}
+#pragma endregion
+
+#pragma region DATA
+			if (!ELF.Align(4))	// Align to word
+				return false;
+
+			Offset<char> o_data;
+			Offset<Elf32_Shdr>	o_data_hdr;
+			Elf32_Half si_data = 0;
+			if (s_data.Offset())	// Store .data data in elf and create shdr
+			{
+				// data
+				o_data = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_data.Offset()), s_data.Begin(), s_data.Offset());
+
+				// shdr
+				o_data_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
+				si_data = cursec++;
+
+				o_data_hdr->sh_name = AddString(".data");
+				o_data_hdr->sh_type = SHT_PROGBITS;
+				o_data_hdr->sh_flags = SHF_WRITE | SHF_ALLOC;
+				o_data_hdr->sh_offset = o_data.offset;
+				o_data_hdr->sh_size = s_data.Offset();
+				o_data_hdr->sh_addralign = 0x04;
+
+				// Print progress
+				std::cout << ">> .data\t: " << o_data_hdr->sh_size << " \tbytes\n";
+			}
+#pragma endregion
+
+#pragma region STRTAB
+			Offset<char>		o_strtab;
+			Offset<Elf32_Shdr>	o_strtab_hdr;
+			Elf32_Half si_strtab = 0;
+			if (s_strtab.Offset())	// Store .strtab data in elf and create eshdr
+			{
+				// shdr
+				o_strtab_hdr = { s_hdr.Offset(), &s_hdr };
+				memset(s_hdr.Alloc<Elf32_Shdr>(), 0x00, sizeof(Elf32_Shdr));
+
+				si_strtab = cursec++;
+
+				o_strtab_hdr->sh_name = AddString(".strtab");
+				o_strtab_hdr->sh_type = SHT_STRTAB;
+				o_strtab_hdr->sh_flags = 0;
+
+				// data
+				o_strtab = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_strtab.Offset()), s_strtab.Begin(), s_strtab.Offset());
+
+				// shdr				
+				o_strtab_hdr->sh_offset = o_strtab.offset;
+				o_strtab_hdr->sh_size = s_strtab.Offset();
+				o_strtab_hdr->sh_addralign = 0x1;
+
+				// Update elf header
+				o_ehdr->e_shstrndx = si_strtab;
+
+				// Print progress
+				std::cout << ">> .strtab\t: " << o_strtab_hdr->sh_size << " \tbytes\n";
+			}
+#pragma endregion
+
+#pragma region SHDR
+			Offset<Elf32_Shdr>	o_shdr;
+			{
+				o_shdr = { ELF.Offset(), &ELF };
+				memcpy(ELF.Alloc(s_hdr.Offset()), s_hdr.Begin(), s_hdr.Offset());
+
+				// Update elf header
+				o_ehdr->e_shoff = o_shdr.offset;
+				o_ehdr->e_shnum = cursec;
+
+				std::cout << ">> sec headers\t: " << s_hdr.Offset() << " \tbytes\n";
+			}
+#pragma endregion
+
+			// Print progress
+			std::cout << ">> TOTAL SIZE\t: " << ELF.Offset() << " \tbytes\n";
+
+			std::ofstream fout(pFile, std::ios::out | std::ios::binary | std::ios::trunc);
+			if (!fout.is_open())
+			{
+				std::cout << "ERROR : Unable to write to file " << pFile << std::endl;
+				return false;
+			}
+
+			fout.write(ELF.Begin(), ELF.Offset());
+			fout.close();
+
+			// Print progress
+			std::cout << ">> Saved ELF object as \"" << pFile << "\"" << std::endl;
+
+			return true;
+		}
+
 	}
 }

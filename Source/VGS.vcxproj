@@ -146,6 +146,7 @@
     <ClInclude Include="Compiler\Offset.h" />
     <ClInclude Include="Compiler\Stack.h" />
     <ClInclude Include="CPU.h" />
+    <ClInclude Include="Loader.h" />
     <ClInclude Include="GPU.h" />
     <ClInclude Include="MEM.h" />
     <ClInclude Include="CPU_OP.h" />
@@ -157,15 +158,13 @@
     <ClCompile Include="Compiler\Linker.cpp" />
     <ClCompile Include="Compiler\Stack.cpp" />
     <ClCompile Include="CPU.cpp" />
+    <ClCompile Include="Loader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MEM.cpp" />
     <ClCompile Include="System.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Test.asm">
-      <DeploymentContent>true</DeploymentContent>
-    </None>
-    <None Include="Test.vgs">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="pread.asm" />
