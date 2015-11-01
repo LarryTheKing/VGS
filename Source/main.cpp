@@ -1,31 +1,21 @@
 #include <fstream>
 
 #include "System.h"
-#include "Compiler/Compiler.h"
-#include "Compiler/Linker.h"
 #include "Compiler/Builder.h"
+#include "Compiler/Linker.h"
+
 
 int main()
 {
 	
-	VGS::Compiler::Builder builder("Language.txt");
+	VGS::Compiler::Builder builder;
 	builder.Build("Test.asm", "Test.elf");
+	builder.Build("pread.asm", "pread.elf");
 
-	const char * files[] = { "Test.elf", "3" };
+	const char * files[] = { "Test.elf", "pread.elf" };
 
 	VGS::Compiler::Linker linker;
-	linker.Link(files, 1, "Out.elf");
+	linker.Link(files, 2, "Out.elf");
 
-	VGS::Compiler::Compiler comp;
-
-	char * pComp = nullptr;
-	size_t cSize = 0;
-
-	pComp = comp.Compile("Test.asm", cSize);
-
-	VGS::System sys(pComp, cSize);
-	sys.Run();
-
-	//free(pData);
 	return 0;
 }

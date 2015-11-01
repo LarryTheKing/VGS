@@ -27,7 +27,8 @@ namespace VGS
 			s_text.Reset();
 			s_data.Reset();
 			s_strtab.Reset();
-			s_symtab.Reset();
+				*s_strtab.Alloc<char>() = '\0';
+			s_symtab.Reset();	
 			s_rela.Reset();
 		}
 
@@ -54,6 +55,11 @@ namespace VGS
 					std::cout << "ERROR : Failed to add object\n" << std::endl;
 					return false;
 				}
+			}
+
+			if (!Finalize())
+			{
+				std::cout << "ERROR : Unable to finalize" << std::endl;
 			}
 
 			return true;
@@ -101,9 +107,9 @@ namespace VGS
 			}
 
 			// Check encoding
-			if (e_hdr.e_ident[EI_CLASS]		!= 1 ||
-				e_hdr.e_ident[EI_DATA]		!= 1 ||
-				e_hdr.e_ident[EI_VERSION]	!= 1)
+			if (e_hdr.e_ident[EI_CLASS] != 1 ||
+				e_hdr.e_ident[EI_DATA] != 1 ||
+				e_hdr.e_ident[EI_VERSION] != 1)
 			{
 				std::cout << "ERROR : Unrecognized encoding" << std::endl;
 				return nullptr;
@@ -112,7 +118,7 @@ namespace VGS
 			// Check type
 			if (e_hdr.e_type != ET_REL ||
 				e_hdr.e_machine != EM_MIPS ||
-				e_hdr.e_flags != EF_MIPS_PIC )
+				e_hdr.e_flags != EF_MIPS_PIC)
 			{
 				std::cout << "ERROR : Incompatible type" << std::endl;
 				return nullptr;
@@ -169,7 +175,7 @@ namespace VGS
 			// Return the name
 			return pStr + pShdr->sh_name;
 		}
-	
+
 		bool Linker::AddSections(char * const pData)
 		{
 			// How many sections are there
@@ -206,14 +212,14 @@ namespace VGS
 					}
 
 					// Add the section data
-					if(pShdr->sh_type == SHT_PROGBITS)	// Is there any data here
+					if (pShdr->sh_type == SHT_PROGBITS)	// Is there any data here
 						memcpy(pSpace, pData + pShdr->sh_offset, pShdr->sh_size);	// Copy data
 					else
 						memset(pSpace, 0x00, pShdr->sh_size);	// Zero space
 
 					// Print message
-					std::cout << ">> " << GetShdrName(pData, i) << "\t: " << pShdr->sh_size << "\tbytes\t@ 0x" 
-						<< std::hex << pShdr->sh_addr <<std::dec<<std::endl;
+					std::cout << ">> " << GetShdrName(pData, i) << "\t: " << pShdr->sh_size << "\tbytes\t@ 0x"
+						<< std::hex << pShdr->sh_addr << std::dec << std::endl;
 				}
 			}
 
@@ -225,12 +231,12 @@ namespace VGS
 		Offset<Elf32_Sym>	Linker::AddSymbol(char const * const pName)
 		{
 			// Check each symbol for matching text
-			// Return an existsing symbol if a match exists
+			// Return an existing symbol if a match exists
 			for (Elf32_Sym * pSym = reinterpret_cast<Elf32_Sym*>(s_symtab.Begin());
 				pSym != reinterpret_cast<Elf32_Sym*>(s_symtab.Cursor()); pSym++)
 			{
 				// If the symbol name matches
-				if (strcmp(pSym->st_name + s_text.Begin(), pName) == 0)
+				if (strcmp(pSym->st_name + s_strtab.Begin(), pName) == 0)
 				{
 					return Offset<Elf32_Sym>(pSym, &s_symtab);
 				}
@@ -242,15 +248,14 @@ namespace VGS
 			pSym->st_name = AddString(pName);
 			return Offset<Elf32_Sym>(pSym, &s_symtab);
 		}
-
 		bool Linker::ParseSymTab(Elf32_Shdr * const pShdr, char * const pData)
 		{
 			// Where are strings stored in pData
 			Elf32_Shdr * pShdrStrtab = GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
 
 			// Where are the symbols actually stored
-			Elf32_Sym * pSymbol		= reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset);
-			Elf32_Sym * pSymbolEnd	= reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset + pShdr->sh_size);
+			Elf32_Sym * pSymbol = reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset);
+			Elf32_Sym * pSymbolEnd = reinterpret_cast<Elf32_Sym*>(pData + pShdr->sh_offset + pShdr->sh_size);
 
 			// Where are the strings actually stored
 			char * pStrtab = pData + pShdrStrtab->sh_offset;
@@ -272,7 +277,7 @@ namespace VGS
 					// Add symbol / find existing symbol
 					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
 
-					// Remeber index to symbol
+					// Remember index to symbol
 					pSymbol->st_value = oSym.offset / sizeof(Elf32_Sym);
 
 					nUndefined++;
@@ -295,7 +300,7 @@ namespace VGS
 
 				// See if this symbol is global
 				if (ELF32_ST_BIND(pSymbol->st_info) == STB_GLOBAL)
-				{	
+				{
 					// Add symbol / find existing symbol
 					Offset<Elf32_Sym> oSym = AddSymbol(pStrtab + pSymbol->st_name);
 
@@ -382,12 +387,12 @@ namespace VGS
 
 			Elf32_Shdr * pShdrParent = GetShdrByIndex(pData, pSym->st_shndx);
 
-			const Elf32_Addr	S	= pSym->st_value;
-			const Elf32_Sword	A	= rela->r_addend;
-			const Elf32_Addr	EA	= pAdr.offset;
-			const Elf32_Addr	P	= pShdrParent->sh_addr;
+			const Elf32_Addr	S = pSym->st_value;
+			const Elf32_Sword	A = rela->r_addend;
+			const Elf32_Addr	EA = pAdr.offset;
+			const Elf32_Addr	P = pShdrParent->sh_addr;
 
-	
+
 			switch (ELF32_R_TYPE(rela->r_info))
 			{
 			case R_MIPS_NONE:
@@ -429,16 +434,16 @@ namespace VGS
 		}
 		bool Linker::ParseRela(Elf32_Shdr * const pShdr, char * const pData)
 		{
-			Elf32_Shdr * pShdrSymtab	= GetShdrByIndex(pData, pShdr->sh_link);
-			Elf32_Shdr * pShdrText		= GetShdrByIndex(pData, pShdr->sh_info);
-			Elf32_Shdr * pShdrStrtab	= GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
+			Elf32_Shdr * pShdrSymtab = GetShdrByIndex(pData, pShdr->sh_link);
+			Elf32_Shdr * pShdrText = GetShdrByIndex(pData, pShdr->sh_info);
+			Elf32_Shdr * pShdrStrtab = GetShdrByIndex(pData, reinterpret_cast<const Elf32_Ehdr*>(pData)->e_shstrndx);
 
 			// Where is the rela data actually stored
-			Elf32_Rela * pRela			= reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset);
-			Elf32_Rela * pRelaEnd		= reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset + pShdr->sh_size);
+			Elf32_Rela * pRela = reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset);
+			Elf32_Rela * pRelaEnd = reinterpret_cast<Elf32_Rela*>(pData + pShdr->sh_offset + pShdr->sh_size);
 
 			// Where are the symbols actually stored
-			Elf32_Sym * pSymbols		= reinterpret_cast<Elf32_Sym*>(pData + pShdrSymtab->sh_offset);
+			Elf32_Sym * pSymbols = reinterpret_cast<Elf32_Sym*>(pData + pShdrSymtab->sh_offset);
 
 			// Where is the .text actually stored
 			Offset<CPU_OP> pText(pShdrText->sh_addr, ((pShdrText->sh_flags & SHF_WRITE) == SHF_WRITE ? &s_data : &s_text));
@@ -457,7 +462,7 @@ namespace VGS
 			do {
 				Offset<CPU_OP>	pFix(pText.offset + pRela->r_offset, pText.pStack);
 				const unsigned __int32 sIndex = ELF32_R_SYM(pRela->r_info);
-				
+
 				// See if this symbol is defined
 				if (pSymbols[sIndex].st_shndx)
 				{	// Yes this symbol is defined
@@ -472,8 +477,12 @@ namespace VGS
 				else // This is an undefined symbol
 				{
 					nUndefined++;
+					Offset<Elf32_Rela> oRela(s_rela.Alloc<Elf32_Rela>(), &s_rela);
+					oRela->r_addend = pRela->r_addend;
+					oRela->r_info = ELF32_R_INFO(pSymbols[sIndex].st_value, ELF32_R_TYPE(pRela->r_info));
+					oRela->r_offset = pRela->r_offset;
 				}
-				
+
 			} while (++pRela != pRelaEnd);
 
 			std::cout << "( " << nUndefined << " Undefined )" << std::endl << std::endl;
@@ -535,8 +544,8 @@ namespace VGS
 				std::cout << "ERROR : Unable to link object" << std::endl;
 				return false;
 			}
-			
-				return true;
+
+			return true;
 		}
 
 		Elf32_Word Linker::AddString(char const * const pString)
@@ -553,6 +562,32 @@ namespace VGS
 			// Add new string
 			size_t strSize = strlen(pString) + 1;
 			return (reinterpret_cast<char*>(memcpy(s_strtab.Alloc(strSize), pString, strSize)) - s_strtab.Begin());
+		}
+
+		bool Linker::Finalize(void)
+		{
+			std::cout << "Finalizing..." << std::endl;
+
+			Elf32_Rela *	pRela		= reinterpret_cast<Elf32_Rela*>(s_rela.Begin());
+			Elf32_Rela *	pRelaEnd	= reinterpret_cast<Elf32_Rela*>(s_rela.Cursor());
+			Elf32_Sym *		pSymTab		= reinterpret_cast<Elf32_Sym*>(s_symtab.Begin());
+
+			// Process each rela
+			do {
+				// See if this symbol is defined
+				if (pSymTab[ELF32_R_SYM(pRela->r_info)].st_info)
+				{
+					
+				}
+				else
+				{
+					std::cout << "ERROR : Undefined symbol \"" << s_strtab.Begin() + pSymTab[ELF32_R_SYM(pRela->r_info)].st_name
+						<< "\" : Aborting" << std::endl;
+					return false;
+				}
+			} while (++pRela != pRelaEnd);
+
+			return true;
 		}
 	}
 }

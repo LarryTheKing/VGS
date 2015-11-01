@@ -3,7 +3,6 @@
 		.text
 		.global main
 main:
-		jal		undefRef		# test
 		jal		pread			# read first integer
 		nop						#
 		mov		$s0,$v0			# save it in $s0
@@ -38,28 +37,6 @@ main:
 		li		$v0,10			# exit
 		syscall
 
-# pread -- prompt for and read an integer
-#
-# on entry:
-#	$ra -- return address
-#
-# on exit:
-#	$v0 -- the integer
-
-		.text
-pread:   
-		la		$a0,prompt		# print string
-		li		$v0,4			# service 4
-		syscall					#
-        
-		li		$v0,5		# read int into $v0
-		syscall					# service 5
-        
-		jr		$ra				# return
-		nop                     #  
-        
 		.data
-		.global prompt
-prompt:	.asciiz	"Enter an integer: "
 s_sum:	.asciiz	"Sum\t\t= "
 s_quit:	.asciiz	"\n\nEnter any number to quit: "

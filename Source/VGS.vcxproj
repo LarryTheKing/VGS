@@ -141,10 +141,8 @@
   <ItemGroup>
     <ClInclude Include="APU.h" />
     <ClInclude Include="Compiler\Builder.h" />
-    <ClInclude Include="Compiler\Compiler.h" />
     <ClInclude Include="Compiler\ELF.h" />
     <ClInclude Include="Compiler\Linker.h" />
-    <ClInclude Include="Compiler\Node.h" />
     <ClInclude Include="Compiler\Offset.h" />
     <ClInclude Include="Compiler\Stack.h" />
     <ClInclude Include="CPU.h" />
@@ -156,7 +154,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Compiler\Builder.cpp" />
-    <ClCompile Include="Compiler\Compiler.cpp" />
     <ClCompile Include="Compiler\Linker.cpp" />
     <ClCompile Include="Compiler\Stack.cpp" />
     <ClCompile Include="CPU.cpp" />
@@ -171,7 +168,7 @@
     <None Include="Test.vgs">
       <DeploymentContent>true</DeploymentContent>
     </None>
-    <None Include="Test2.asm" />
+    <None Include="pread.asm" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Language.txt">
